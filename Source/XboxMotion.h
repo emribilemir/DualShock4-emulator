@@ -33,6 +33,17 @@ struct Rate {
         report.wAccelX = 0; report.wAccelY = 8192; report.wAccelZ = 0;
     }
 };
+struct Gesture {
+    bool active = false;
+    bool Update(bool held, short rightX, short rightY, const Settings& settings) {
+        if (!held) active = false;
+        else if (std::hypot(XboxTouchpad::Normalize(rightX), XboxTouchpad::Normalize(rightY)) > settings.deadzone)
+            active = true;
+        // Once drawing starts, keep reserving the key until release. Returning
+        // to center must stop gyro without unexpectedly pressing R1 in the game.
+        return active;
+    }
+};
 inline Rate Calculate(short rightX, short rightY, const Settings& settings) {
     const double x = XboxTouchpad::Normalize(rightX), y = XboxTouchpad::Normalize(rightY);
     const double magnitude = std::sqrt(x * x + y * y);

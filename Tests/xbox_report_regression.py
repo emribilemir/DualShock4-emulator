@@ -47,6 +47,7 @@ Result NAME(XINPUT_STATE myPState, const Config& c, State& state) {
     bool XboxStickTouchActive = false;
     bool XboxStickMotionActive = false;
     XboxMotion::Rate XboxStickMotionRate;
+    auto& MotionStickGesture = state.motionGesture;
     bool MotionStickEnabled = c.motionEnabled;
     const int XboxMode = 1; int EmulationMode = 1; bool SocketActivated = c.externalMotion;
     int MotionStickKey = c.motionKey;
@@ -90,7 +91,7 @@ const int KEY_ID_SHARE = 0;
     preamble += between(header, "struct _TouchData", "_TouchData Touch1;")
     preamble += header[header.index("double StickDeviationPercent"):]
     preamble += """
-struct State { _TouchData t1{}, t2{}; DS4_TOUCH last{}; bool valid = false; uint8_t packet = 0; XboxTouchpad::State stick; };
+struct State { _TouchData t1{}, t2{}; DS4_TOUCH last{}; bool valid = false; uint8_t packet = 0; XboxTouchpad::State stick; XboxMotion::Gesture motionGesture; };
 struct Config { bool swap = false, disable = false, share = false, click = false, ix = false, iy = false; XboxTouchpad::Settings touch; bool motionEnabled = false, externalMotion = false; int motionKey = XINPUT_GAMEPAD_RIGHT_SHOULDER; XboxMotion::Settings motion; };
 struct Result { DS4_REPORT_EX report; unsigned motions; bool modifier; };
 void check(bool ok, const char* message) { if (!ok) { std::fprintf(stderr, "FAIL: %s\\n", message); std::exit(1); } }
@@ -182,6 +183,31 @@ int main() {
         ++analog;
     }
     Config motion; motion.motionEnabled = true;
+    XINPUT_STATE plain{}; plain.Gamepad.wButtons = XINPUT_GAMEPAD_RIGHT_SHOULDER;
+    plain.Gamepad.sThumbRX = 1000; plain.Gamepad.sThumbRY = -900;
+    plain.Gamepad.bLeftTrigger = 77; plain.Gamepad.bRightTrigger = 231;
+    State plainState;
+    for (int i=0; i<30; ++i) {
+        auto r = updated(plain,motion,plainState);
+        check((r.report.wButtons & DS4_BUTTON_SHOULDER_RIGHT) && !plainState.motionGesture.active,
+            "plain RB and sub-deadzone drift retain R1 before a motion gesture");
+        check(r.report.bTriggerL == 77 && r.report.bTriggerR == 231, "plain RB retains triggers");
+        check(r.report.wGyroX == 1 && r.report.wGyroY == 0 && r.report.wGyroZ == 0,
+            "plain RB retains calibrated neutral gyro");
+    }
+    plain.Gamepad.sThumbRX = 6553; plain.Gamepad.sThumbRY = 0;
+    auto beginGesture = updated(plain,motion,plainState);
+    check(!(beginGesture.report.wButtons & DS4_BUTTON_SHOULDER_RIGHT) && plainState.motionGesture.active
+        && beginGesture.report.bThumbRX == 128 && beginGesture.report.bThumbRY == 128
+        && beginGesture.report.wGyroY == -8 && beginGesture.report.bTriggerR == 231,
+        "movement switches a plain held RB from R1 to gyro while preserving RT");
+    plain.Gamepad.sThumbRX = 0;
+    auto centerGesture = updated(plain,motion,plainState);
+    check(!(centerGesture.report.wButtons & DS4_BUTTON_SHOULDER_RIGHT) && centerGesture.report.wGyroX == 1
+        && centerGesture.report.wGyroY == 0 && centerGesture.report.bThumbRX == 128,
+        "centering after a plain RB to motion transition keeps R1 released and gyro neutral");
+    plain.Gamepad.wButtons = 0;
+    check(!(updated(plain,motion,plainState).report.wButtons & DS4_BUTTON_SHOULDER_RIGHT), "plain RB release releases R1");
     XINPUT_STATE heldMotion{}; heldMotion.Gamepad.wButtons = XINPUT_GAMEPAD_RIGHT_SHOULDER;
     heldMotion.Gamepad.bRightTrigger = 231;
     State contact;
@@ -193,6 +219,8 @@ int main() {
         check(r.report.sCurrentTouch.bIsUpTrackingNum1 & 0x80, "motion does not create a touch");
     }
     heldMotion.Gamepad.sThumbRX = 0; auto stopped = updated(heldMotion,motion,contact);
+    check(!(stopped.report.wButtons & DS4_BUTTON_SHOULDER_RIGHT) && contact.motionGesture.active,
+        "centering during motion does not cause an unintended R1 press");
     check(stopped.report.wGyroX == 1 && stopped.report.wGyroY == 0 && stopped.report.wGyroZ == 0,
         "neutral stops calibrated gyro immediately");
     heldMotion.Gamepad.wButtons = 0; heldMotion.Gamepad.sThumbRX = 32767;
@@ -204,10 +232,20 @@ int main() {
         check(idle.report.wGyroX == 1 && idle.report.wGyroY == 0 && idle.report.wGyroZ == 0,
             "released modifier stays at calibrated gyro zero even with stick deflection");
     }
+    heldMotion.Gamepad.sThumbRX = 0; heldMotion.Gamepad.wButtons = XINPUT_GAMEPAD_RIGHT_SHOULDER;
+    check(updated(heldMotion,motion,contact).report.wButtons & DS4_BUTTON_SHOULDER_RIGHT,
+        "plain RB works again after a motion gesture is released");
+    heldMotion.Gamepad.sThumbRX = 32767;
+    updated(heldMotion,motion,contact);
+    heldMotion.Gamepad.wButtons |= XINPUT_GAMEPAD_BACK;
+    auto backShake = updated(heldMotion,motion,contact);
+    check(backShake.motions & 1, "Back plus RB still shakes after analog motion");
+    check(!contact.motionGesture.active, "Back priority clears analog gesture");
+    heldMotion.Gamepad.wButtons = 0;
     motion.externalMotion = true;
     auto external = updated(heldMotion,motion,contact);
     check(external.report.wGyroX == 123 && external.report.wGyroY == -456 && external.report.wGyroZ == 789, "external IMU path is not offset or replaced");
-    std::printf("PASS: %llu enabled analog full-report comparisons, RT, touch-up, neutral and release.\n", analog);
+    std::printf("PASS: %llu enabled analog full-report comparisons, plain RB, gesture latch, RT, Back, touch-up, neutral and release.\n", analog);
     std::printf("PASS: %llu legacy full reports, %llu modern button/stick/motion comparisons; corner, release, tracking, LT/RT.\n", cases,modern);
 }
 """

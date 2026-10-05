@@ -14,6 +14,12 @@ int main() {
     XboxMotion::Rate pitch; pitch.gyro[0] = -960; pitch.Apply(neutral);
     check(neutral.wGyroX == -959 && neutral.wGyroX-1 == -960, "pitch offset preserves intended signed rate");
     XboxMotion::Settings s;
+    XboxMotion::Gesture gesture;
+    check(!gesture.Update(true,1000,-900,s), "plain modifier with drift does not reserve button");
+    check(gesture.Update(true,6553,0,s), "stick beyond deadzone starts motion gesture");
+    check(gesture.Update(true,0,0,s), "centering keeps button reserved until release");
+    check(!gesture.Update(false,32767,0,s), "modifier release clears gesture despite deflection");
+    check(!gesture.Update(true,0,0,s), "new plain press works normally after a gesture");
     auto full = XboxMotion::Calculate(32767,0,s);
     check(full.gyro[0] == 0 && full.gyro[1] == -960 && full.gyro[2] == 0,"horizontal mouse-equivalent axis and speed");
     check(XboxMotion::Calculate(-32768,0,s).gyro[1] == 960,"negative full normalization");

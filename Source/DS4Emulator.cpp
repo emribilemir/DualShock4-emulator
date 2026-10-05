@@ -585,7 +585,7 @@ int main(int argc, char **argv)
 	// Write current mode
 	MainTextUpdate();
 	if (MotionStickEnabled)
-		printf_s(" Analog motion: %s + RIGHT-STICK, max %.1f deg/s. Back combinations take priority.\n", MotionStickKeyName.c_str(), MotionStickSettings.speed);
+		printf_s(" Analog motion: %s + RIGHT-STICK, max %.1f deg/s. Button alone works normally; movement reserves it until release. Back combinations take priority.\n", MotionStickKeyName.c_str(), MotionStickSettings.speed);
 	if (MotionSpeedConsole.available)
 		printf(" Focus this console and press M to edit motion speed. No global shortcut is registered.\n");
 
@@ -599,6 +599,7 @@ int main(int argc, char **argv)
 	Touch2.LeftMode = 2;
 	static uint8_t TouchPacket = 0;
 	XboxTouchpad::State TouchpadStickState;
+	XboxMotion::Gesture MotionStickGesture;
 	auto TouchpadStickLastFrame = std::chrono::steady_clock::now();
 
 	while ( !(IsKeyPressed(VK_LMENU) && IsKeyPressed(VK_ESCAPE) ) )
@@ -635,6 +636,7 @@ int main(int argc, char **argv)
 
 		// While editing in the console, release all game inputs so editor keys cannot become touches.
 		if (MotionSpeedConsole.active) {
+			MotionStickGesture.active = false;
 			XboxMotion::Rate{}.Apply(report);
 			report.bTouchPacketsN = 1;
 			report.sCurrentTouch.bPacketCounter = ++TouchPacket;
@@ -647,10 +649,12 @@ int main(int argc, char **argv)
 		}
 
 		// Xbox mode
+		if (EmulationMode != XboxMode) MotionStickGesture.active = false;
 		if (EmulationMode == XboxMode) {
 			DWORD myStatus = ERROR_DEVICE_NOT_CONNECTED;
 			if (hDll != NULL)
 				myStatus = MyXInputGetState(XboxUserIndex, &myPState);
+			if (myStatus != ERROR_SUCCESS) MotionStickGesture.active = false;
 			
 			if (myStatus == ERROR_SUCCESS) {
 
@@ -699,12 +703,14 @@ int main(int argc, char **argv)
 				myPState.Gamepad.sThumbRY = DeadZoneXboxAxis(myPState.Gamepad.sThumbRY, DeadZoneRightStickY);
 
 				// Convert axis from - https://github.com/sam0x17/XJoy/blob/236b5539cc15ea1c83e1e5f0260937f69a78866d/Include/ViGEmUtil.h
-				// A separate held key routes the right stick to gyro. Keep all Back chords intact.
-				XboxStickMotionActive = MotionStickEnabled && MotionStickKey != 0
+				// Reserve the key only after stick movement starts; a plain press stays a normal button.
+				const bool MotionStickHeld = MotionStickEnabled && MotionStickKey != 0
 					&& (myPState.Gamepad.wButtons & MotionStickKey)
 					&& !(myPState.Gamepad.wButtons & KEY_ID_XBOX_ACTIVATE_MULTI)
 					&& !(myPState.Gamepad.wButtons & XINPUT_GAMEPAD_BACK)
 					&& !(SwapTriggersShoulders && (MotionStickKey & (XINPUT_GAMEPAD_LEFT_SHOULDER | XINPUT_GAMEPAD_RIGHT_SHOULDER)));
+				XboxStickMotionActive = MotionStickGesture.Update(MotionStickHeld,
+					myPState.Gamepad.sThumbRX, myPState.Gamepad.sThumbRY, MotionStickSettings);
 				if (XboxStickMotionActive) {
 					XboxStickMotionRate = XboxMotion::Calculate(myPState.Gamepad.sThumbRX, myPState.Gamepad.sThumbRY, MotionStickSettings);
 					myPState.Gamepad.wButtons &= ~MotionStickKey;
