@@ -17,9 +17,16 @@ TouchpadStickCurve=quadratic
 TouchpadStickSmoothing=0
 ```
 
-This is a starting preset for graffiti/drawing with an Xbox stick. The recommendation
-comes from synthetic controls tests, not an in-game capture or a confirmed fix for
-every shadPS4/game input path. Select the virtual DS4 in the game/emulator.
+This is a starting preset for drawing that consumes DS4 touch coordinates. The
+recommendation comes from synthetic controls tests, not an in-game capture.
+
+**inFAMOUS Second Son distinction:** its stencil/graffiti nozzle is aimed by tilting
+the controller, as described in [Prima's opening-mission walkthrough](https://primagames.com/news/infamous-second-son-how-beat-mission-1-delsin-rowe).
+That is motion input. These settings change touch coordinates only; they leave the
+existing gyro/motion mapping intact. They are not a verified fix for native
+inFAMOUS graffiti aiming or an emulator's motion path. If your setup explicitly
+routes touch coordinates to drawing, the preset applies; otherwise the motion
+mapping needs separate testing. Select the virtual DS4 in the game/emulator.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -67,7 +74,8 @@ position += alpha*(target-position)
 ```
 
 Neutral returns the touch to center, gradually when smoothing is enabled. `S=0.60`
-restricts the reachable rectangle to its central 60%; use `S=1` to reach all edges.
+restricts each axis span to its central 60%; the reachable shape is an ellipse.
+`S=1` reaches the midpoint of each edge; reaching corners requires higher gain.
 The user-requested comparison preset is absolute/linear, S=0.60, d=0.12, smoothing=0.20.
 For a quick absolute swipe, a smaller smoothing time or zero smoothing responds faster.
 
