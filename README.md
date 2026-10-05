@@ -126,6 +126,8 @@ The Last Of Us Part II (2020) | Options -> Accessibility -> "Strumming Settings"
 On the Xbox gamepad, you need to press the `Back/View/Select` button (touchpad) and move the stick to the sides for swipes. By default, pressing the touchpad during swipes is disabled, it can be enabled in the configuration file by changing the `TouchPadPressedWhenSwiping` parameter to `1`.
 
 
+Configurable Xbox right-stick touchpad controls (legacy, improved absolute, or relative/velocity) and drawing presets are documented in [Xbox touchpad stick settings](Docs/TouchpadStick.md). Existing configs keep the legacy mapping.
+
 ## Motion with Android phone (Gyroscope)
 1. Enable the `Activate` parameter in the `Config.ini` configuration file, changing `0` to `1`, in the `Motion` section.
 2. Check Windows Firewall to see if incoming connections are allowed on your network type (private) and allow if disabled.
