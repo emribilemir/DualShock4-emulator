@@ -3,6 +3,7 @@
 #include <chrono>
 #include "XboxTouchpad.h"
 #include "XboxMotion.h"
+#include "XboxMotionConsole.h"
 #include "ViGEm\Client.h"
 #include "IniReader\IniReader.h"
 #include "DS4Emulator.h"
@@ -579,10 +580,14 @@ int main(int argc, char **argv)
 		m_HalfHeight = GetSystemMetrics(SM_CYSCREEN) / 2;
 	}
 
+	XboxMotion::ConsoleTuner MotionSpeedConsole(MotionStickEnabled);
+
 	// Write current mode
 	MainTextUpdate();
 	if (MotionStickEnabled)
 		printf_s(" Analog motion: %s + RIGHT-STICK, max %.1f deg/s. Back combinations take priority.\n", MotionStickKeyName.c_str(), MotionStickSettings.speed);
+	if (MotionSpeedConsole.available)
+		printf(" Focus this console and press M to edit motion speed. No global shortcut is registered.\n");
 
 	DS4_TOUCH BuffPreviousTouch[2] = { 0, 0 };
 	BuffPreviousTouch[0].bIsUpTrackingNum1 = 0x80;
@@ -599,6 +604,7 @@ int main(int argc, char **argv)
 	while ( !(IsKeyPressed(VK_LMENU) && IsKeyPressed(VK_ESCAPE) ) )
 	{
 		DS4_REPORT_INIT_EX(&report);
+		MotionSpeedConsole.Poll(MotionStickSettings, IniFile.GetIniPath().c_str());
 
 		const auto TouchpadStickNow = std::chrono::steady_clock::now();
 		const double TouchpadStickDelta = std::chrono::duration<double>(TouchpadStickNow - TouchpadStickLastFrame).count();
@@ -626,6 +632,19 @@ int main(int argc, char **argv)
 		report.bBatteryLvl = 11;
 
 		bool MotionShaking = false, MotionXAdd = false, MotionXSub = false, MotionYAdd = false, MotionYSub = false, MotionZAdd = false, MotionZSub = false;
+
+		// While editing in the console, release all game inputs so editor keys cannot become touches.
+		if (MotionSpeedConsole.active) {
+			XboxMotion::Rate{}.Apply(report);
+			report.bTouchPacketsN = 1;
+			report.sCurrentTouch.bPacketCounter = ++TouchPacket;
+			Touch1.PrevTouched = Touch2.PrevTouched = false;
+			LastTouchValid = false; TouchpadStickState.Release();
+			report.wTimestamp = (USHORT)(std::chrono::duration_cast<std::chrono::milliseconds>(TouchpadStickNow - start).count() & 0xFFFF);
+			ret = vigem_target_ds4_update_ex(client, ds4, report);
+			Sleep(10);
+			continue;
+		}
 
 		// Xbox mode
 		if (EmulationMode == XboxMode) {

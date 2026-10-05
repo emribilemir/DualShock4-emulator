@@ -21,6 +21,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Motion test compile failed' }
     & "$out/motion_stick.exe" | Tee-Object "$out/motion-results.txt"
     if ($LASTEXITCODE -ne 0) { throw 'Motion tests failed' }
+    & "$msvc/bin/Hostx64/x64/cl.exe" /nologo /std:c++17 /O2 /EHsc /MT Tests/motion_console.cpp "/Fo$out/motion_console.obj" "/Fe$out/motion_console.exe"
+    if ($LASTEXITCODE -ne 0) { throw 'Console test compile failed' }
+    & "$out/motion_console.exe" | Tee-Object "$out/console-results.txt"
+    if ($LASTEXITCODE -ne 0) { throw 'Console tests failed' }
     if ($Python) {
         & $Python Tests/xbox_report_regression.py --output $out
         if ($LASTEXITCODE -ne 0) { throw 'Report extraction failed' }
