@@ -6,6 +6,37 @@
 # DualShock4 emulator
 Simple application to emulate the Sony DualShock 4 gamepad using an Xbox controller or keyboard and mouse. This method is necessary for the fully work of the service [Sony Playstation Plus](https://www.playstation.com/en-us/ps-plus/) or [Playstation Remote Play](https://www.playstation.com/remote-play/). Works based on the driver [ViGEm](https://github.com/ViGEm).
 
+## Xbox input improvements in this branch
+
+This development branch extends the original project by [r57zone](https://github.com/r57zone/DualShock4-emulator). The changes are proposed upstream in [PR #107](https://github.com/r57zone/DualShock4-emulator/pull/107).
+
+- **Simultaneous triggers:** LT/L2 and RT/R2 remain available while Back/View activates touchpad or motion emulation. Shoulder/trigger swapping is preserved.
+- **Optional analog motion:** hold RB and move the right stick to control DS4 gyro input. Speed, deadzone, response curve, axes and inversion are configurable. Releasing RB restores normal right-stick control; existing Back + D-pad rotation and Back + RB shake retain priority.
+- **Console sensitivity editor:** focus the emulator console and press M. Arrows adjust speed, Shift + arrows make finer adjustments, Enter saves, and Esc/M cancels. The editor adds no global shortcut and releases virtual game inputs while editing.
+- **Gyro neutral correction:** opt-in analog motion accounts for ViGEm's pitch calibration offset, including after releasing RB, to avoid a small calibrated rotation at rest.
+- **Optional touchpad modes:** legacy, improved absolute and relative/velocity mapping. Existing configs retain legacy touchpad controls and have analog motion disabled.
+
+For a slower starting point, merge these keys into the existing `[Xbox]` section of `Config.ini` and restart:
+
+```ini
+TouchpadStickMode=legacy
+MotionStickEnabled=1
+MotionStickKey=RIGHT-SHOULDER
+MotionStickSpeed=30
+MotionStickDeadzone=0.12
+MotionStickCurve=quadratic
+MotionStickHorizontalAxis=Y
+MotionStickVerticalAxis=X
+MotionStickInvertHorizontal=1
+MotionStickInvertVertical=0
+```
+
+This motion input is intended for tasks such as inFAMOUS Second Son graffiti aiming; slowing touchpad input alone does not address that motion control. Use the existing Back + D-pad rotation for the initial controller rotation, then RB + right stick for analog motion, with RT available for spraying. In shadPS4, select the virtual DS4, enable motion input and turn off F6 mouse gyro while testing. Directions may need adjustment for the game's current orientation or emulator build. With `SwapTriggersShoulders=1`, use a separate modifier such as `MotionStickKey=RIGHT-STICK` (R3).
+
+See [motion controls and console tuning](Docs/MotionStick.md) and [touchpad settings and comparisons](Docs/TouchpadStick.md). Set `MotionStickEnabled=0` and `TouchpadStickMode=legacy` to use the original control scheme while retaining the trigger fix.
+
+Release x64 builds and synthetic report/regression tests passed. The gyro calibration offset was also measured from a live virtual DS4. These checks do not establish gameplay results; the latest drift correction still needs in-game confirmation. Reproduce tests with `Tests/run_touchpad_tests.ps1 -Python python`; add `-Render` to generate the touchpad comparison GIFs.
+
 ## Setup
 1. Install [ViGEmBus](https://github.com/ViGEm/ViGEmBus/releases).
 2. Install [Microsoft Visual C++ Redistributable 2017](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist) or newer.
