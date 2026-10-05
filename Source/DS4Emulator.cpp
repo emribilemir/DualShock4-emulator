@@ -790,25 +790,13 @@ int main(int argc, char **argv)
 							report.wButtons |= DS4_BUTTON_SHOULDER_LEFT;
 						if (myPState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
 							report.wButtons |= DS4_BUTTON_SHOULDER_RIGHT;
-						
-						report.bTriggerL = myPState.Gamepad.bLeftTrigger;
-						report.bTriggerR = myPState.Gamepad.bRightTrigger;
 					}
 					else {
 						if (myPState.Gamepad.bLeftTrigger > 0)
 							report.wButtons |= DS4_BUTTON_SHOULDER_LEFT;
 						if (myPState.Gamepad.bRightTrigger > 0)
 							report.wButtons |= DS4_BUTTON_SHOULDER_RIGHT;
-						if (myPState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER)
-							report.bTriggerL = 255;
-						if (myPState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
-							report.bTriggerR = 255;
 					}
-
-					if (report.bTriggerL > 0) // Specific of DualShock
-						report.wButtons |= DS4_BUTTON_TRIGGER_LEFT; 
-					if (report.bTriggerR > 0) // Specific of DualShock
-						report.wButtons |= DS4_BUTTON_TRIGGER_RIGHT;
 
 					if (myPState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_UP)
 						DS4_SET_DPAD_EX(&report, DS4_BUTTON_DPAD_NORTH);
@@ -828,6 +816,23 @@ int main(int argc, char **argv)
 					if (myPState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT && myPState.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_DOWN)
 						DS4_SET_DPAD_EX(&report, DS4_BUTTON_DPAD_SOUTHEAST);
 				}
+
+				// Allow triggers while the touchpad/motion modifier is held.
+				if (SwapTriggersShoulders == false) {
+					report.bTriggerL = myPState.Gamepad.bLeftTrigger;
+					report.bTriggerR = myPState.Gamepad.bRightTrigger;
+				}
+				else {
+					if (myPState.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER)
+						report.bTriggerL = 255;
+					if (myPState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
+						report.bTriggerR = 255;
+				}
+
+				if (report.bTriggerL > 0) // Specific of DualShock
+					report.wButtons |= DS4_BUTTON_TRIGGER_LEFT;
+				if (report.bTriggerR > 0) // Specific of DualShock
+					report.wButtons |= DS4_BUTTON_TRIGGER_RIGHT;
 
 				// Touchpad swipes
 				if (report.bSpecial & DS4_SPECIAL_BUTTON_TOUCHPAD) {
