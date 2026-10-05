@@ -17,6 +17,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Test compile failed' }
     & "$out/touchpad_modes.exe" | Tee-Object "$out/unit-results.txt"
     if ($LASTEXITCODE -ne 0) { throw 'Touchpad tests failed' }
+    & "$msvc/bin/Hostx64/x64/cl.exe" /nologo /std:c++17 /O2 /EHsc /MT Tests/motion_stick.cpp "/Fo$out/motion_stick.obj" "/Fe$out/motion_stick.exe"
+    if ($LASTEXITCODE -ne 0) { throw 'Motion test compile failed' }
+    & "$out/motion_stick.exe" | Tee-Object "$out/motion-results.txt"
+    if ($LASTEXITCODE -ne 0) { throw 'Motion tests failed' }
     if ($Python) {
         & $Python Tests/xbox_report_regression.py --output $out
         if ($LASTEXITCODE -ne 0) { throw 'Report extraction failed' }

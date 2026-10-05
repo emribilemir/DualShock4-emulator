@@ -44,6 +44,11 @@ Result NAME(XINPUT_STATE myPState, const Config& c, State& state) {
     const auto& TouchpadStickSettings = c.touch;
     const double TouchpadStickDelta = 0.01;
     bool XboxStickTouchActive = false;
+    bool XboxStickMotionActive = false;
+    XboxMotion::Rate XboxStickMotionRate;
+    bool MotionStickEnabled = c.motionEnabled;
+    int MotionStickKey = c.motionKey;
+    const auto& MotionStickSettings = c.motion;
 """.replace("NAME", name)
     return setup + mapping + packing + motion + """
     unsigned motions = MotionShaking | (MotionXAdd << 1) | (MotionXSub << 2) | (MotionYAdd << 3)
@@ -74,6 +79,7 @@ def main():
 #include <cstring>
 #include "../../Source/ViGEm/Common.h"
 #include "../../Source/XboxTouchpad.h"
+#include "../../Source/XboxMotion.h"
 bool IsKeyPressed(int) { return false; }
 const int KEY_ID_SHARE = 0;
 """
@@ -83,7 +89,7 @@ const int KEY_ID_SHARE = 0;
     preamble += header[header.index("double StickDeviationPercent"):]
     preamble += """
 struct State { _TouchData t1{}, t2{}; DS4_TOUCH last{}; bool valid = false; uint8_t packet = 0; XboxTouchpad::State stick; };
-struct Config { bool swap = false, disable = false, share = false, click = false, ix = false, iy = false; XboxTouchpad::Settings touch; };
+struct Config { bool swap = false, disable = false, share = false, click = false, ix = false, iy = false; XboxTouchpad::Settings touch; bool motionEnabled = false; int motionKey = XINPUT_GAMEPAD_RIGHT_SHOULDER; XboxMotion::Settings motion; };
 struct Result { DS4_REPORT_EX report; unsigned motions; bool modifier; };
 void check(bool ok, const char* message) { if (!ok) { std::fprintf(stderr, "FAIL: %s\\n", message); std::exit(1); } }
 """
@@ -147,6 +153,49 @@ int main() {
     check(direction.t1.X > 960 && direction.t1.Y < 471, "normal absolute X/Y direction");
     c.ix = c.iy = true; direction = {}; auto inverted = updated(x,c,direction);
     check(direction.t1.X < 960 && direction.t1.Y > 471, "existing InvertX/Y settings honored");
+
+    unsigned long long analog = 0;
+    for (int key : {XINPUT_GAMEPAD_RIGHT_SHOULDER, XINPUT_GAMEPAD_RIGHT_THUMB, 0, XINPUT_GAMEPAD_BACK})
+    for (int flags = 0; flags < 16; ++flags) for (unsigned buttons = 0; buttons < 65536; ++buttons) {
+        Config cfg; cfg.motionEnabled = true; cfg.motionKey = key;
+        cfg.swap = flags & 1; cfg.disable = flags & 2; cfg.share = flags & 4; cfg.click = flags & 8;
+        XINPUT_STATE input{}; input.Gamepad.wButtons = WORD(buttons);
+        input.Gamepad.bLeftTrigger = 77; input.Gamepad.bRightTrigger = 200;
+        input.Gamepad.sThumbLX = 12000; input.Gamepad.sThumbLY = -9000;
+        input.Gamepad.sThumbRX = 32767; input.Gamepad.sThumbRY = 0;
+        State before, after;
+        auto actual = updated(input,cfg,after);
+        bool eligible = key != 0 && (buttons & key) && !(buttons & XINPUT_GAMEPAD_BACK)
+            && !(cfg.swap && key == XINPUT_GAMEPAD_RIGHT_SHOULDER);
+        if (eligible) input.Gamepad.wButtons &= ~key;
+        auto expected = original(input,cfg,before);
+        if (eligible) {
+            expected.report.bThumbRX = expected.report.bThumbRY = 128;
+            expected.report.wGyroX = 0; expected.report.wGyroY = -960; expected.report.wGyroZ = 0;
+            expected.report.wAccelX = 0; expected.report.wAccelY = 8192; expected.report.wAccelZ = 0;
+        }
+        check(std::memcmp(&expected.report,&actual.report,sizeof(DS4_REPORT_EX)) == 0,
+            "analog routing, reserved key, right-stick suppression, triggers, Back priority and swap compatibility");
+        ++analog;
+    }
+    Config motion; motion.motionEnabled = true;
+    XINPUT_STATE heldMotion{}; heldMotion.Gamepad.wButtons = XINPUT_GAMEPAD_RIGHT_SHOULDER;
+    heldMotion.Gamepad.bRightTrigger = 231;
+    State contact;
+    for (int i=0; i<20; ++i) {
+        heldMotion.Gamepad.sThumbRX = i % 2 ? 32767 : -32768;
+        auto r = updated(heldMotion,motion,contact);
+        check(r.report.bTriggerR == 231 && (r.report.wButtons & DS4_BUTTON_TRIGGER_RIGHT), "RT stays active during analog gyro");
+        check(r.report.wGyroY == (i % 2 ? -960 : 960), "analog horizontal sign and repeated samples");
+        check(r.report.sCurrentTouch.bIsUpTrackingNum1 & 0x80, "motion does not create a touch");
+    }
+    heldMotion.Gamepad.sThumbRX = 0; auto stopped = updated(heldMotion,motion,contact);
+    check(stopped.report.wGyroX == 0 && stopped.report.wGyroY == 0 && stopped.report.wGyroZ == 0,
+        "neutral stops gyro immediately");
+    heldMotion.Gamepad.wButtons = 0; heldMotion.Gamepad.sThumbRX = 32767;
+    auto normal = updated(heldMotion,motion,contact);
+    check(normal.report.bThumbRX == 255 && normal.report.wAccelY == 0, "key release restores normal stick and sensor source");
+    std::printf("PASS: %llu enabled analog full-report comparisons, RT, touch-up, neutral and release.\n", analog);
     std::printf("PASS: %llu legacy full reports, %llu modern button/stick/motion comparisons; corner, release, tracking, LT/RT.\n", cases,modern);
 }
 """
