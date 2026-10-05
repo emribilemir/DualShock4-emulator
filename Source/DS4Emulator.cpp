@@ -1339,8 +1339,16 @@ int main(int argc, char **argv)
 		}
 
 		// Explicit shake/keyboard/D-pad motion retains priority over analog motion.
-		if (XboxStickMotionActive && !(MotionShaking || MotionXAdd || MotionXSub || MotionYAdd || MotionYSub || MotionZAdd || MotionZSub))
-			XboxStickMotionRate.Apply(report);
+		if (!(MotionShaking || MotionXAdd || MotionXSub || MotionYAdd || MotionYSub || MotionZAdd || MotionZSub)) {
+			if (XboxStickMotionActive)
+				XboxStickMotionRate.Apply(report);
+			else if (MotionStickEnabled && EmulationMode == XboxMode && !SocketActivated) {
+				// Keep calibrated gyro neutral after releasing the analog modifier.
+				// Leave external IMU, legacy/digital motion and acceleration behavior intact.
+				report.wGyroX = XboxMotion::GyroPitchZero;
+				report.wGyroY = 0; report.wGyroZ = 0;
+			}
+		}
 
 		// Special keys
 		if (IsKeyPressed(KEY_ID_PS))

@@ -24,6 +24,7 @@ def mapper(source, name):
     setup = """
 Result NAME(XINPUT_STATE myPState, const Config& c, State& state) {
     DS4_REPORT_EX report; DS4_REPORT_INIT_EX(&report);
+    if (c.externalMotion) { report.wGyroX = 123; report.wGyroY = -456; report.wGyroZ = 789; }
     auto& Touch1 = state.t1; auto& Touch2 = state.t2;
     Touch1.X = Touch1.Y = Touch2.X = Touch2.Y = 0;
     auto& LastTouch = state.last; auto& LastTouchValid = state.valid;
@@ -47,6 +48,7 @@ Result NAME(XINPUT_STATE myPState, const Config& c, State& state) {
     bool XboxStickMotionActive = false;
     XboxMotion::Rate XboxStickMotionRate;
     bool MotionStickEnabled = c.motionEnabled;
+    const int XboxMode = 1; int EmulationMode = 1; bool SocketActivated = c.externalMotion;
     int MotionStickKey = c.motionKey;
     const auto& MotionStickSettings = c.motion;
 """.replace("NAME", name)
@@ -89,7 +91,7 @@ const int KEY_ID_SHARE = 0;
     preamble += header[header.index("double StickDeviationPercent"):]
     preamble += """
 struct State { _TouchData t1{}, t2{}; DS4_TOUCH last{}; bool valid = false; uint8_t packet = 0; XboxTouchpad::State stick; };
-struct Config { bool swap = false, disable = false, share = false, click = false, ix = false, iy = false; XboxTouchpad::Settings touch; bool motionEnabled = false; int motionKey = XINPUT_GAMEPAD_RIGHT_SHOULDER; XboxMotion::Settings motion; };
+struct Config { bool swap = false, disable = false, share = false, click = false, ix = false, iy = false; XboxTouchpad::Settings touch; bool motionEnabled = false, externalMotion = false; int motionKey = XINPUT_GAMEPAD_RIGHT_SHOULDER; XboxMotion::Settings motion; };
 struct Result { DS4_REPORT_EX report; unsigned motions; bool modifier; };
 void check(bool ok, const char* message) { if (!ok) { std::fprintf(stderr, "FAIL: %s\\n", message); std::exit(1); } }
 """
@@ -171,9 +173,10 @@ int main() {
         auto expected = original(input,cfg,before);
         if (eligible) {
             expected.report.bThumbRX = expected.report.bThumbRY = 128;
-            expected.report.wGyroX = 0; expected.report.wGyroY = -960; expected.report.wGyroZ = 0;
+            expected.report.wGyroX = 1; expected.report.wGyroY = -960; expected.report.wGyroZ = 0;
             expected.report.wAccelX = 0; expected.report.wAccelY = 8192; expected.report.wAccelZ = 0;
         }
+        if (!eligible && !expected.motions) expected.report.wGyroX = 1;
         check(std::memcmp(&expected.report,&actual.report,sizeof(DS4_REPORT_EX)) == 0,
             "analog routing, reserved key, right-stick suppression, triggers, Back priority and swap compatibility");
         ++analog;
@@ -190,11 +193,20 @@ int main() {
         check(r.report.sCurrentTouch.bIsUpTrackingNum1 & 0x80, "motion does not create a touch");
     }
     heldMotion.Gamepad.sThumbRX = 0; auto stopped = updated(heldMotion,motion,contact);
-    check(stopped.report.wGyroX == 0 && stopped.report.wGyroY == 0 && stopped.report.wGyroZ == 0,
-        "neutral stops gyro immediately");
+    check(stopped.report.wGyroX == 1 && stopped.report.wGyroY == 0 && stopped.report.wGyroZ == 0,
+        "neutral stops calibrated gyro immediately");
     heldMotion.Gamepad.wButtons = 0; heldMotion.Gamepad.sThumbRX = 32767;
     auto normal = updated(heldMotion,motion,contact);
-    check(normal.report.bThumbRX == 255 && normal.report.wAccelY == 0, "key release restores normal stick and sensor source");
+    check(normal.report.bThumbRX == 255 && normal.report.wAccelY == 0 && normal.report.wGyroX == 1,
+        "key release restores normal stick and acceleration, keeping calibrated neutral pitch");
+    for (int i=0; i<1000; ++i) {
+        auto idle = updated(heldMotion,motion,contact);
+        check(idle.report.wGyroX == 1 && idle.report.wGyroY == 0 && idle.report.wGyroZ == 0,
+            "released modifier stays at calibrated gyro zero even with stick deflection");
+    }
+    motion.externalMotion = true;
+    auto external = updated(heldMotion,motion,contact);
+    check(external.report.wGyroX == 123 && external.report.wGyroY == -456 && external.report.wGyroZ == 789, "external IMU path is not offset or replaced");
     std::printf("PASS: %llu enabled analog full-report comparisons, RT, touch-up, neutral and release.\n", analog);
     std::printf("PASS: %llu legacy full reports, %llu modern button/stick/motion comparisons; corner, release, tracking, LT/RT.\n", cases,modern);
 }

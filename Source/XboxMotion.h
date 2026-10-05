@@ -4,6 +4,9 @@
 
 // Angular velocity, not a per-frame angle. The receiving application integrates it.
 namespace XboxMotion {
+// ViGEm's DS4 feature report 0x02 advertises a +1 raw pitch zero offset.
+// SDL subtracts it during calibration: raw (1,0,0), not (0,0,0), means no rotation.
+constexpr short GyroPitchZero = 1;
 enum class Axis { X, Y, Z };
 inline Axis ParseAxis(const std::string& value, Axis fallback) {
     const std::string axis = XboxTouchpad::Lower(value);
@@ -24,7 +27,8 @@ struct Settings {
 struct Rate {
     short gyro[3] = {0, 0, 0};
     template<class Report> void Apply(Report& report) const {
-        report.wGyroX = gyro[0]; report.wGyroY = gyro[1]; report.wGyroZ = gyro[2];
+        report.wGyroX = static_cast<short>(XboxTouchpad::Limit(gyro[0] + GyroPitchZero, -32767, 32767));
+        report.wGyroY = gyro[1]; report.wGyroZ = gyro[2];
         // Same stationary reference as shadPS4's mouse gyro: +1g on Y.
         report.wAccelX = 0; report.wAccelY = 8192; report.wAccelZ = 0;
     }

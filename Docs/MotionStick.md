@@ -26,6 +26,15 @@ MotionStickEnabled defaults to 0. Existing configs/reports remain unchanged. The
 earlier trigger-fix block and Back stick-suppression block are byte-identical.
 Touchpad mode is independent and can stay legacy.
 
+ViGEm's DS4 calibration feature report (0x02) advertises raw gyro pitch bias +1.
+SDL subtracts this bias; sending raw zero creates about -0.061 deg/s of calibrated
+pitch drift with the measured factory gain. The analog mode adds +1 to outgoing
+pitch rates, including neutral while held and after release. Thus calibrated zero
+is raw (1,0,0). Released neutral correction applies only in Xbox mode with
+MotionStickEnabled and no external IMU socket; disabled legacy mode, digital
+rotation/shake and external sensor output retain their behavior. Acceleration is
+not changed on release. A live HID read confirmed the bias and old raw-zero output.
+
 ## Adjust speed in the console
 
 Focus the DS4Emulator console and press M. Arrow keys change speed by 5 deg/s;
@@ -69,7 +78,7 @@ For normalized stick s, magnitude m, deadzone d and full speed V:
 u = max(0, (min(m,1)-d)/(1-d))
 r = u*u                   # quadratic; linear uses u
 velocity = (s/m)*r*V      # zero inside deadzone
-raw gyro = round(velocity*16)
+raw gyro = round(velocity*16)  # add +1 to pitch for ViGEm calibration
 ```
 
 Positive stick normalization uses /32767; negative uses /32768. Radial response
