@@ -5,7 +5,7 @@ Merge these keys into `[Xbox]` in Config.ini, then restart:
 ```ini
 TouchpadStickMode=legacy
 MotionStickEnabled=1
-MotionStickKey=RIGHT-SHOULDER
+MotionStickKey=START
 MotionStickSpeed=60
 MotionStickDeadzone=0.12
 MotionStickCurve=quadratic
@@ -15,6 +15,15 @@ MotionStickInvertHorizontal=1
 MotionStickInvertVertical=0
 ```
 
+With `MotionStickKey=START`, Start/Menu is held as a pending action. Move the
+right stick beyond the motion deadzone while holding Start to use gyro. Returning
+to center stops motion; releasing Start after motion never sends Options. A plain
+Start press without analog movement sends a 50 ms Options pulse on release, rather
+than opening the menu on press. Back + Start still sends Share and cancels the
+pending menu action. RB remains normal R1, and RT/LT stay available. Moving the
+stick beyond the deadzone during a plain Start press counts as a motion gesture.
+
+The older RB modifier is still selectable with `MotionStickKey=RIGHT-SHOULDER`:
 RB alone retains normal R1 output. RB + right-stick movement beyond the configured
 radial deadzone starts an analog motion gesture. RT/LT stay available. Once a
 gesture starts, RB is reserved and normal right-stick axes are centered until RB
@@ -100,7 +109,7 @@ defaults. Axis names ignore case; invalid axes fall back to Y/X. Coincident axes
 resolve to distinct axes. Curve defaults to quadratic; other values use linear.
 
 `Tests/run_touchpad_tests.ps1 -Python python` checks math/axes/rates and extracts
-actual application mapping/packing/motion blocks for regression. 4,194,304 enabled
+actual application mapping/packing/motion blocks for regression. 5,242,880 enabled
 analog full-report comparisons pass, covering key reservation, normal camera,
 RT, Back priority, swap, neutral, release and no unintended touch. The existing
 16,777,216 legacy and 8,388,608 modern-touch comparisons also pass. Physical

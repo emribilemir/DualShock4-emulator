@@ -11,7 +11,7 @@ Simple application to emulate the Sony DualShock 4 gamepad using an Xbox control
 This development branch extends the original project by [r57zone](https://github.com/r57zone/DualShock4-emulator). The changes are proposed upstream in [PR #107](https://github.com/r57zone/DualShock4-emulator/pull/107).
 
 - **Simultaneous triggers:** LT/L2 and RT/R2 remain available while Back/View activates touchpad or motion emulation. Shoulder/trigger swapping is preserved.
-- **Optional analog motion:** RB alone works as normal R1. Hold RB and move the right stick beyond its motion deadzone to start DS4 gyro control; RB stays reserved until release so centering the stick does not accidentally press R1. Speed, deadzone, response curve, axes and inversion are configurable. Releasing RB restores normal right-stick control; existing Back + D-pad rotation and Back + RB shake retain priority.
+- **Optional analog motion:** hold a configurable button and move the right stick beyond its motion deadzone to start DS4 gyro control. The preset below uses Start/Menu: a plain press opens the menu on release, while a motion gesture never sends Options. RB remains normal R1. Speed, deadzone, response curve, axes and inversion are configurable. Releasing the modifier restores normal right-stick control; existing Back + D-pad rotation and Back + RB shake retain priority.
 - **Console sensitivity editor:** focus the emulator console and press M. Arrows adjust speed, Shift + arrows make finer adjustments, Enter saves, and Esc/M cancels. The editor adds no global shortcut and releases virtual game inputs while editing.
 - **Gyro neutral correction:** opt-in analog motion accounts for ViGEm's pitch calibration offset, including after releasing RB, to avoid a small calibrated rotation at rest.
 - **Optional touchpad modes:** legacy, improved absolute and relative/velocity mapping. Existing configs retain legacy touchpad controls and have analog motion disabled.
@@ -21,7 +21,7 @@ For a slower starting point, merge these keys into the existing `[Xbox]` section
 ```ini
 TouchpadStickMode=legacy
 MotionStickEnabled=1
-MotionStickKey=RIGHT-SHOULDER
+MotionStickKey=START
 MotionStickSpeed=30
 MotionStickDeadzone=0.12
 MotionStickCurve=quadratic
@@ -31,7 +31,9 @@ MotionStickInvertHorizontal=1
 MotionStickInvertVertical=0
 ```
 
-This motion input is intended for tasks such as inFAMOUS Second Son graffiti aiming; slowing touchpad input alone does not address that motion control. Use the existing Back + D-pad rotation for the initial controller rotation, then RB + right stick for analog motion, with RT available for spraying. In shadPS4, select the virtual DS4, enable motion input and turn off F6 mouse gyro while testing. Directions may need adjustment for the game's current orientation or emulator build. With `SwapTriggersShoulders=1`, use a separate modifier such as `MotionStickKey=RIGHT-STICK` (R3).
+With this preset, Start/Menu alone opens the game menu on release. Start + right-stick movement starts gyro and never sends Options, including when the stick centers or Start is released. RB remains normal R1. Back + Start still sends Share. The original RB modifier remains selectable; its plain press is forwarded immediately before analog movement.
+
+This motion input is intended for tasks such as inFAMOUS Second Son graffiti aiming; slowing touchpad input alone does not address that motion control. Use the existing Back + D-pad rotation for the initial controller rotation, then Start + right stick for analog motion, with RT available for spraying. In shadPS4, select the virtual DS4, enable motion input and turn off F6 mouse gyro while testing. Directions may need adjustment for the game's current orientation or emulator build. Start also works with `SwapTriggersShoulders=1`; a shoulder modifier is suspended in that configuration.
 
 See [motion controls and console tuning](Docs/MotionStick.md) and [touchpad settings and comparisons](Docs/TouchpadStick.md). Set `MotionStickEnabled=0` and `TouchpadStickMode=legacy` to use the original control scheme while retaining the trigger fix.
 
