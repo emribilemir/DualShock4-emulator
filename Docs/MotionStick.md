@@ -26,6 +26,21 @@ MotionStickEnabled defaults to 0. Existing configs/reports remain unchanged. The
 earlier trigger-fix block and Back stick-suppression block are byte-identical.
 Touchpad mode is independent and can stay legacy.
 
+## Adjust speed in the console
+
+Focus the DS4Emulator console and press M. Arrow keys change speed by 5 deg/s;
+Shift+arrows use 1 deg/s. Enter saves only Xbox/MotionStickSpeed in Config.ini and
+exits. Esc or M cancels and restores the speed that was active on entry. A failed
+save keeps the editor open for retry. Other keys and Alt/Ctrl combinations are
+ignored. Holding M does not repeatedly toggle the editor; arrows support repeat.
+
+These controls read console input events, not global keyboard state, so keys typed
+in the game window cannot activate the editor. While editing, all virtual game
+inputs are released, gyro is zero, and touches are up; editor arrows cannot become
+game inputs. Controls resume on exit. No F6, Alt+F7/F8/F10 or other global shortcut
+is added. Console input settings are restored on normal program exit. Redirected
+input disables the editor; Config.ini remains usable.
+
 Use the virtual DS4 and enable gamepad motion/sensor reading in shadPS4. Turn F6
 mouse gyro off while testing analog so it cannot overwrite the gyro samples.
 Default axes/signs match ordinary shadPS4 mouse gyro: mouse up is +X, right is -Y.
