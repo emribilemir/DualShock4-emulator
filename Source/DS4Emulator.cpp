@@ -1,5 +1,7 @@
 ﻿#include <Windows.h>
 #include <mutex>
+#include <chrono>
+#include "XboxTouchpad.h"
 #include "ViGEm\Client.h"
 #include "IniReader\IniReader.h"
 #include "DS4Emulator.h"
@@ -442,6 +444,14 @@ int main(int argc, char **argv)
 	SwapShareTouchPad = IniFile.ReadBoolean("Xbox", "SwapShareTouchPad", false);
 	TouchPadPressedWhenSwiping = IniFile.ReadBoolean("Xbox", "TouchPadPressedWhenSwiping", false);
 	bool EnableXboxButton = IniFile.ReadBoolean("Xbox", "EnableXboxButton", true);
+	XboxTouchpad::Settings TouchpadStickSettings;
+	TouchpadStickSettings.mode = XboxTouchpad::ParseMode(IniFile.ReadString("Xbox", "TouchpadStickMode", "legacy"));
+	TouchpadStickSettings.sensitivity = IniFile.ReadFloat("Xbox", "TouchpadStickSensitivity", 0.60f);
+	TouchpadStickSettings.deadzone = IniFile.ReadFloat("Xbox", "TouchpadStickDeadzone", 0.12f);
+	TouchpadStickSettings.smoothing = IniFile.ReadFloat("Xbox", "TouchpadStickSmoothing", 0.0f);
+	if (XboxTouchpad::Lower(IniFile.ReadString("Xbox", "TouchpadStickCurve", "linear")) == "quadratic")
+		TouchpadStickSettings.curve = XboxTouchpad::Curve::Quadratic;
+	TouchpadStickSettings.Validate();
 
 	KEY_ID_XBOX_ACTIVATE_MULTI_NAME = IniFile.ReadString("Xbox", "MultiActivateKey", "BACK");
 	int KEY_ID_XBOX_ACTIVATE_MULTI = XboxKeyNameToXboxKeyCode(KEY_ID_XBOX_ACTIVATE_MULTI_NAME);
@@ -567,10 +577,17 @@ int main(int argc, char **argv)
 
 	Touch2.LeftMode = 2;
 	static uint8_t TouchPacket = 0;
+	XboxTouchpad::State TouchpadStickState;
+	auto TouchpadStickLastFrame = std::chrono::steady_clock::now();
 
 	while ( !(IsKeyPressed(VK_LMENU) && IsKeyPressed(VK_ESCAPE) ) )
 	{
 		DS4_REPORT_INIT_EX(&report);
+
+		const auto TouchpadStickNow = std::chrono::steady_clock::now();
+		const double TouchpadStickDelta = std::chrono::duration<double>(TouchpadStickNow - TouchpadStickLastFrame).count();
+		TouchpadStickLastFrame = TouchpadStickNow;
+		bool XboxStickTouchActive = false;
 
 		ResetTouchData(Touch1);
 		ResetTouchData(Touch2); 
@@ -864,6 +881,7 @@ int main(int argc, char **argv)
 
 					//printf(" %.2f %.2f %d %d \n", LeftStickValue, RightStickValue, report.bThumbRX, report.bThumbRY);
 
+					if (TouchpadStickSettings.mode == XboxTouchpad::Mode::Legacy) {
 					if (report.bThumbRX > 127)
 						Touch1.X = 200 + trunc(1519 * RightStickValue);
 					if (report.bThumbRX < 127)
@@ -873,6 +891,13 @@ int main(int argc, char **argv)
 						Touch1.Y = 100 + trunc(741 * RightStickValue);
 					if (report.bThumbRY < 129)
 						Touch1.Y = 743 - trunc(741 * RightStickValue);
+					} else {
+						const double stickX = XboxTouchpad::Normalize(myPState.Gamepad.sThumbRX) * (InvertX ? -1.0 : 1.0);
+						const double stickY = XboxTouchpad::Normalize(myPState.Gamepad.sThumbRY) * (InvertY ? 1.0 : -1.0);
+						TouchpadStickState.Update(stickX, stickY, TouchpadStickDelta, TouchpadStickSettings);
+						Touch1.X = TouchpadStickState.X(); Touch1.Y = TouchpadStickState.Y();
+						XboxStickTouchActive = true;
+					}
 
 					if (report.bThumbLX > 127)
 						Touch2.X = 200 + trunc(1519 * LeftStickValue);
@@ -1174,7 +1199,8 @@ int main(int argc, char **argv)
 		if (IsKeyPressed(KEY_ID_MOTION_Z_SUB)) MotionZSub = true;
 
 		// состояние пальцев сейчас
-		Touch1.IsChanged = (Touch1.X | Touch1.Y) != 0;
+		if (!XboxStickTouchActive) TouchpadStickState.Release();
+		Touch1.IsChanged = XboxStickTouchActive || (Touch1.X | Touch1.Y) != 0;
 		Touch2.IsChanged = (Touch2.X | Touch2.Y) != 0;
 
 		// фронт касания -> новый track-id (0..127)
