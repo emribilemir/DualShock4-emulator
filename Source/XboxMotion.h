@@ -1,0 +1,46 @@
+#pragma once
+
+#include "XboxTouchpad.h"
+
+// Angular velocity, not a per-frame angle. The receiving application integrates it.
+namespace XboxMotion {
+enum class Axis { X, Y, Z };
+inline Axis ParseAxis(const std::string& value, Axis fallback) {
+    const std::string axis = XboxTouchpad::Lower(value);
+    return axis == "x" ? Axis::X : axis == "y" ? Axis::Y : axis == "z" ? Axis::Z : fallback;
+}
+struct Settings {
+    double speed = 60.0; // degrees/second at full deflection
+    double deadzone = 0.12;
+    bool quadratic = true;
+    Axis horizontal = Axis::Y, vertical = Axis::X;
+    bool invertHorizontal = true, invertVertical = false;
+    void Validate() {
+        speed = XboxTouchpad::Limit(std::isfinite(speed) ? speed : 60.0, 0.1, 2000.0);
+        deadzone = XboxTouchpad::Limit(std::isfinite(deadzone) ? deadzone : 0.12, 0.0, 0.95);
+        if (horizontal == vertical) vertical = horizontal == Axis::X ? Axis::Y : Axis::X;
+    }
+};
+struct Rate {
+    short gyro[3] = {0, 0, 0};
+    template<class Report> void Apply(Report& report) const {
+        report.wGyroX = gyro[0]; report.wGyroY = gyro[1]; report.wGyroZ = gyro[2];
+        // Same stationary reference as shadPS4's mouse gyro: +1g on Y.
+        report.wAccelX = 0; report.wAccelY = 8192; report.wAccelZ = 0;
+    }
+};
+inline Rate Calculate(short rightX, short rightY, const Settings& settings) {
+    const double x = XboxTouchpad::Normalize(rightX), y = XboxTouchpad::Normalize(rightY);
+    const double magnitude = std::sqrt(x * x + y * y);
+    Rate rate;
+    if (magnitude > settings.deadzone) {
+        double response = (XboxTouchpad::Limit(magnitude, 0.0, 1.0) - settings.deadzone) / (1.0 - settings.deadzone);
+        if (settings.quadratic) response *= response;
+        // DS4 raw gyro scale: 16 counts per degree/second (SDL HIDAPI fallback).
+        const double scale = response * settings.speed * 16.0 / magnitude;
+        rate.gyro[static_cast<int>(settings.horizontal)] = static_cast<short>(std::lround(x * scale * (settings.invertHorizontal ? -1 : 1)));
+        rate.gyro[static_cast<int>(settings.vertical)] = static_cast<short>(std::lround(y * scale * (settings.invertVertical ? -1 : 1)));
+    }
+    return rate;
+}
+}

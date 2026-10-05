@@ -176,6 +176,7 @@
   <ItemGroup>
     <ClInclude Include="DS4Emulator.h" />
     <ClInclude Include="XboxTouchpad.h" />
+    <ClInclude Include="XboxMotion.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
