@@ -15,9 +15,15 @@ MotionStickInvertHorizontal=1
 MotionStickInvertVertical=0
 ```
 
-RB + right stick controls angular velocity; neutral stops rotation. RT/LT stay
-available. The reserved RB does not output R1, and normal right-stick axes are
-centered while routing motion. Release RB to restore normal camera control.
+RB alone retains normal R1 output. RB + right-stick movement beyond the configured
+radial deadzone starts an analog motion gesture. RT/LT stay available. Once a
+gesture starts, RB is reserved and normal right-stick axes are centered until RB
+is released. Centering the stick stops gyro without sending an unintended R1.
+Release RB to restore normal camera control and allow a new plain RB/R1 press.
+Before stick movement starts, RB is forwarded immediately; this can produce an
+initial R1 press if RB is pressed first. For games where that conflicts, configure
+a separate motion key such as RIGHT-STICK (R3). Back priority, disconnect and
+console editing clear the gesture.
 Back + D-pad rotation, Back + RB shake, Back touchpad and explicit keyboard motion
 retain priority. There is no automatic 90-degree rotation or orientation reset.
 Use the intro rotation that already works before switching to analog drawing.
@@ -98,4 +104,6 @@ actual application mapping/packing/motion blocks for regression. 4,194,304 enabl
 analog full-report comparisons pass, covering key reservation, normal camera,
 RT, Back priority, swap, neutral, release and no unintended touch. The existing
 16,777,216 legacy and 8,388,608 modern-touch comparisons also pass. Physical
-inFAMOUS gameplay has not been validated by these synthetic tests.
+inFAMOUS gameplay has not been validated by these synthetic tests. Additional
+sequence checks cover plain RB with stick drift, motion activation, center hold
+without accidental R1, release/repress and Back + RB shake after analog motion.

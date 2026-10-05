@@ -11,7 +11,7 @@ Simple application to emulate the Sony DualShock 4 gamepad using an Xbox control
 This development branch extends the original project by [r57zone](https://github.com/r57zone/DualShock4-emulator). The changes are proposed upstream in [PR #107](https://github.com/r57zone/DualShock4-emulator/pull/107).
 
 - **Simultaneous triggers:** LT/L2 and RT/R2 remain available while Back/View activates touchpad or motion emulation. Shoulder/trigger swapping is preserved.
-- **Optional analog motion:** hold RB and move the right stick to control DS4 gyro input. Speed, deadzone, response curve, axes and inversion are configurable. Releasing RB restores normal right-stick control; existing Back + D-pad rotation and Back + RB shake retain priority.
+- **Optional analog motion:** RB alone works as normal R1. Hold RB and move the right stick beyond its motion deadzone to start DS4 gyro control; RB stays reserved until release so centering the stick does not accidentally press R1. Speed, deadzone, response curve, axes and inversion are configurable. Releasing RB restores normal right-stick control; existing Back + D-pad rotation and Back + RB shake retain priority.
 - **Console sensitivity editor:** focus the emulator console and press M. Arrows adjust speed, Shift + arrows make finer adjustments, Enter saves, and Esc/M cancels. The editor adds no global shortcut and releases virtual game inputs while editing.
 - **Gyro neutral correction:** opt-in analog motion accounts for ViGEm's pitch calibration offset, including after releasing RB, to avoid a small calibrated rotation at rest.
 - **Optional touchpad modes:** legacy, improved absolute and relative/velocity mapping. Existing configs retain legacy touchpad controls and have analog motion disabled.
