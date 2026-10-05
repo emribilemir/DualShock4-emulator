@@ -586,6 +586,8 @@ int main(int argc, char **argv)
 	MainTextUpdate();
 	if (MotionStickEnabled)
 		printf_s(" Analog motion: %s + RIGHT-STICK, max %.1f deg/s. Button alone works normally; movement reserves it until release. Back combinations take priority.\n", MotionStickKeyName.c_str(), MotionStickSettings.speed);
+	if (MotionStickEnabled && MotionStickKey == XINPUT_GAMEPAD_START)
+		printf(" Start alone sends Options on release; a motion gesture never opens the menu.\n");
 	if (MotionSpeedConsole.available)
 		printf(" Focus this console and press M to edit motion speed. No global shortcut is registered.\n");
 
@@ -600,6 +602,7 @@ int main(int argc, char **argv)
 	static uint8_t TouchPacket = 0;
 	XboxTouchpad::State TouchpadStickState;
 	XboxMotion::Gesture MotionStickGesture;
+	XboxMotion::MenuButton MotionMenuButton;
 	auto TouchpadStickLastFrame = std::chrono::steady_clock::now();
 
 	while ( !(IsKeyPressed(VK_LMENU) && IsKeyPressed(VK_ESCAPE) ) )
@@ -637,6 +640,7 @@ int main(int argc, char **argv)
 		// While editing in the console, release all game inputs so editor keys cannot become touches.
 		if (MotionSpeedConsole.active) {
 			MotionStickGesture.active = false;
+			MotionMenuButton = {};
 			XboxMotion::Rate{}.Apply(report);
 			report.bTouchPacketsN = 1;
 			report.sCurrentTouch.bPacketCounter = ++TouchPacket;
@@ -649,12 +653,12 @@ int main(int argc, char **argv)
 		}
 
 		// Xbox mode
-		if (EmulationMode != XboxMode) MotionStickGesture.active = false;
+		if (EmulationMode != XboxMode) { MotionStickGesture.active = false; MotionMenuButton = {}; }
 		if (EmulationMode == XboxMode) {
 			DWORD myStatus = ERROR_DEVICE_NOT_CONNECTED;
 			if (hDll != NULL)
 				myStatus = MyXInputGetState(XboxUserIndex, &myPState);
-			if (myStatus != ERROR_SUCCESS) MotionStickGesture.active = false;
+			if (myStatus != ERROR_SUCCESS) { MotionStickGesture.active = false; MotionMenuButton = {}; }
 			
 			if (myStatus == ERROR_SUCCESS) {
 
@@ -711,6 +715,14 @@ int main(int argc, char **argv)
 					&& !(SwapTriggersShoulders && (MotionStickKey & (XINPUT_GAMEPAD_LEFT_SHOULDER | XINPUT_GAMEPAD_RIGHT_SHOULDER)));
 				XboxStickMotionActive = MotionStickGesture.Update(MotionStickHeld,
 					myPState.Gamepad.sThumbRX, myPState.Gamepad.sThumbRY, MotionStickSettings);
+				const bool MotionMenuAllowed = MotionStickEnabled && MotionStickKey == XINPUT_GAMEPAD_START
+					&& !(myPState.Gamepad.wButtons & (KEY_ID_XBOX_ACTIVATE_MULTI | XINPUT_GAMEPAD_BACK));
+				const bool MotionMenuPulse = MotionMenuButton.Update(MotionMenuAllowed,
+					(myPState.Gamepad.wButtons & XINPUT_GAMEPAD_START) != 0, XboxStickMotionActive, TouchpadStickDelta);
+				if (MotionMenuAllowed) {
+					myPState.Gamepad.wButtons &= ~XINPUT_GAMEPAD_START;
+					if (MotionMenuPulse) report.wButtons |= DS4_BUTTON_OPTIONS;
+				}
 				if (XboxStickMotionActive) {
 					XboxStickMotionRate = XboxMotion::Calculate(myPState.Gamepad.sThumbRX, myPState.Gamepad.sThumbRY, MotionStickSettings);
 					myPState.Gamepad.wButtons &= ~MotionStickKey;

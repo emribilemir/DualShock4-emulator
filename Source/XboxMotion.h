@@ -44,6 +44,25 @@ struct Gesture {
         return active;
     }
 };
+struct MenuButton {
+    bool held = false, usedForMotion = false;
+    double pulse = 0.0;
+    bool Update(bool allowed, bool pressed, bool motionActive, double seconds) {
+        if (!allowed) { *this = {}; return false; }
+        pulse = std::fmax(0.0, pulse - XboxTouchpad::Limit(seconds, 0.0, 0.05));
+        if (pressed) {
+            if (!held) { usedForMotion = false; pulse = 0.0; }
+            held = true;
+            usedForMotion = usedForMotion || motionActive;
+            return false;
+        }
+        if (held) {
+            if (!usedForMotion) pulse = 0.05; // Remain visible across host polling intervals.
+            held = usedForMotion = false;
+        }
+        return pulse > 0.0;
+    }
+};
 inline Rate Calculate(short rightX, short rightY, const Settings& settings) {
     const double x = XboxTouchpad::Normalize(rightX), y = XboxTouchpad::Normalize(rightY);
     const double magnitude = std::sqrt(x * x + y * y);

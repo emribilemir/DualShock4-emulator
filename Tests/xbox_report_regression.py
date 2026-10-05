@@ -48,6 +48,7 @@ Result NAME(XINPUT_STATE myPState, const Config& c, State& state) {
     bool XboxStickMotionActive = false;
     XboxMotion::Rate XboxStickMotionRate;
     auto& MotionStickGesture = state.motionGesture;
+    auto& MotionMenuButton = state.menuButton;
     bool MotionStickEnabled = c.motionEnabled;
     const int XboxMode = 1; int EmulationMode = 1; bool SocketActivated = c.externalMotion;
     int MotionStickKey = c.motionKey;
@@ -91,7 +92,7 @@ const int KEY_ID_SHARE = 0;
     preamble += between(header, "struct _TouchData", "_TouchData Touch1;")
     preamble += header[header.index("double StickDeviationPercent"):]
     preamble += """
-struct State { _TouchData t1{}, t2{}; DS4_TOUCH last{}; bool valid = false; uint8_t packet = 0; XboxTouchpad::State stick; XboxMotion::Gesture motionGesture; };
+struct State { _TouchData t1{}, t2{}; DS4_TOUCH last{}; bool valid = false; uint8_t packet = 0; XboxTouchpad::State stick; XboxMotion::Gesture motionGesture; XboxMotion::MenuButton menuButton; };
 struct Config { bool swap = false, disable = false, share = false, click = false, ix = false, iy = false; XboxTouchpad::Settings touch; bool motionEnabled = false, externalMotion = false; int motionKey = XINPUT_GAMEPAD_RIGHT_SHOULDER; XboxMotion::Settings motion; };
 struct Result { DS4_REPORT_EX report; unsigned motions; bool modifier; };
 void check(bool ok, const char* message) { if (!ok) { std::fprintf(stderr, "FAIL: %s\\n", message); std::exit(1); } }
@@ -158,7 +159,7 @@ int main() {
     check(direction.t1.X < 960 && direction.t1.Y > 471, "existing InvertX/Y settings honored");
 
     unsigned long long analog = 0;
-    for (int key : {XINPUT_GAMEPAD_RIGHT_SHOULDER, XINPUT_GAMEPAD_RIGHT_THUMB, 0, XINPUT_GAMEPAD_BACK})
+    for (int key : {XINPUT_GAMEPAD_RIGHT_SHOULDER, XINPUT_GAMEPAD_RIGHT_THUMB, XINPUT_GAMEPAD_START, 0, XINPUT_GAMEPAD_BACK})
     for (int flags = 0; flags < 16; ++flags) for (unsigned buttons = 0; buttons < 65536; ++buttons) {
         Config cfg; cfg.motionEnabled = true; cfg.motionKey = key;
         cfg.swap = flags & 1; cfg.disable = flags & 2; cfg.share = flags & 4; cfg.click = flags & 8;
@@ -245,6 +246,46 @@ int main() {
     motion.externalMotion = true;
     auto external = updated(heldMotion,motion,contact);
     check(external.report.wGyroX == 123 && external.report.wGyroY == -456 && external.report.wGyroZ == 789, "external IMU path is not offset or replaced");
+    Config menu; menu.motionEnabled = true; menu.motionKey = XINPUT_GAMEPAD_START;
+    XINPUT_STATE menuInput{}; State menuState;
+    menuInput.Gamepad.wButtons = XINPUT_GAMEPAD_START;
+    for (int i=0; i<20; ++i)
+        check(!(updated(menuInput,menu,menuState).report.wButtons & DS4_BUTTON_OPTIONS), "held Start does not open menu before deciding gesture");
+    menuInput.Gamepad.wButtons = 0;
+    for (int i=0; i<5; ++i)
+        check(updated(menuInput,menu,menuState).report.wButtons & DS4_BUTTON_OPTIONS, "plain Start release sends polling-visible Options pulse");
+    for (int i=0; i<10; ++i)
+        check(!(updated(menuInput,menu,menuState).report.wButtons & DS4_BUTTON_OPTIONS), "Options pulse ends without repeat");
+    menuInput.Gamepad.wButtons = XINPUT_GAMEPAD_START | XINPUT_GAMEPAD_RIGHT_SHOULDER;
+    menuInput.Gamepad.bRightTrigger = 215;
+    updated(menuInput,menu,menuState);
+    menuInput.Gamepad.sThumbRX = 6553;
+    auto menuMotion = updated(menuInput,menu,menuState);
+    check(!(menuMotion.report.wButtons & DS4_BUTTON_OPTIONS) && (menuMotion.report.wButtons & DS4_BUTTON_SHOULDER_RIGHT)
+        && menuMotion.report.bTriggerR == 215 && menuMotion.report.wGyroY == -8 && menuMotion.report.bThumbRX == 128,
+        "Start motion reserves Options while RB and RT retain normal functions");
+    menuInput.Gamepad.sThumbRX = 0;
+    check(!(updated(menuInput,menu,menuState).report.wButtons & DS4_BUTTON_OPTIONS), "centered Start gesture does not open menu");
+    menuInput.Gamepad.wButtons = 0;
+    for (int i=0; i<10; ++i)
+        check(!(updated(menuInput,menu,menuState).report.wButtons & DS4_BUTTON_OPTIONS), "motion release never sends Options");
+    menuInput.Gamepad.wButtons = XINPUT_GAMEPAD_START;
+    updated(menuInput,menu,menuState);
+    menuInput.Gamepad.wButtons |= XINPUT_GAMEPAD_BACK;
+    auto share = updated(menuInput,menu,menuState);
+    check((share.report.wButtons & DS4_BUTTON_SHARE) && !(share.report.wButtons & DS4_BUTTON_OPTIONS), "Back plus Start Share keeps priority");
+    menuInput.Gamepad.wButtons = 0;
+    check(!(updated(menuInput,menu,menuState).report.wButtons & DS4_BUTTON_OPTIONS), "Share release does not send Options");
+    menuInput.Gamepad.wButtons = XINPUT_GAMEPAD_BACK;
+    auto backClick = updated(menuInput,menu,menuState);
+    check(backClick.report.bSpecial & DS4_SPECIAL_BUTTON_TOUCHPAD, "plain Back touchpad click unchanged with centered stick");
+    menuInput.Gamepad.wButtons |= XINPUT_GAMEPAD_DPAD_RIGHT;
+    check(updated(menuInput,menu,menuState).motions & (1 << 6), "Back plus D-pad rotation unchanged with Start motion key");
+    menuInput.Gamepad.wButtons = XINPUT_GAMEPAD_BACK | XINPUT_GAMEPAD_RIGHT_SHOULDER;
+    check(updated(menuInput,menu,menuState).motions & 1, "Back plus RB shake unchanged with Start motion key");
+    menu.motionEnabled = false; menuInput.Gamepad.wButtons = XINPUT_GAMEPAD_START;
+    check(updated(menuInput,menu,menuState).report.wButtons & DS4_BUTTON_OPTIONS, "disabled motion keeps immediate held Options");
+    std::puts("PASS: Start tap/menu pulse, analog motion without Options, normal RB/RT, Back touch/rotation/shake and Share.");
     std::printf("PASS: %llu enabled analog full-report comparisons, plain RB, gesture latch, RT, Back, touch-up, neutral and release.\n", analog);
     std::printf("PASS: %llu legacy full reports, %llu modern button/stick/motion comparisons; corner, release, tracking, LT/RT.\n", cases,modern);
 }

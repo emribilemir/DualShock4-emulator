@@ -20,6 +20,20 @@ int main() {
     check(gesture.Update(true,0,0,s), "centering keeps button reserved until release");
     check(!gesture.Update(false,32767,0,s), "modifier release clears gesture despite deflection");
     check(!gesture.Update(true,0,0,s), "new plain press works normally after a gesture");
+    for (int hz : {30,60,250,1000}) {
+        XboxMotion::MenuButton menu;
+        check(!menu.Update(true,true,false,1.0/hz), "Start press defers Options");
+        check(menu.Update(true,false,false,1.0/hz), "Start tap releases Options pulse");
+        double duration = 0;
+        while (menu.Update(true,false,false,1.0/hz)) duration += 1.0/hz;
+        check(duration <= .05 && duration >= .05-1.0/hz-.000001, "menu pulse elapsed time is polling independent");
+        menu.Update(true,true,true,1.0/hz);
+        check(!menu.Update(true,true,false,1.0/hz), "centering after motion does not send Options");
+        check(!menu.Update(true,false,false,1.0/hz), "motion release does not open menu");
+        menu.Update(true,true,false,1.0/hz);
+        check(!menu.Update(false,true,false,1.0/hz) && !menu.Update(true,false,false,1.0/hz),
+            "Back priority cancels pending tap without later menu pulse");
+    }
     auto full = XboxMotion::Calculate(32767,0,s);
     check(full.gyro[0] == 0 && full.gyro[1] == -960 && full.gyro[2] == 0,"horizontal mouse-equivalent axis and speed");
     check(XboxMotion::Calculate(-32768,0,s).gyro[1] == 960,"negative full normalization");
