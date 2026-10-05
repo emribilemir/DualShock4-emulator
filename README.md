@@ -52,6 +52,8 @@ You can shake (gyro) the controller by pressing `Back/View/Select` and `RB` (rig
 
 You can rotate the gamepad (gyroscope) by pressing `Back` and the `DPAD ←↑↓→` (you can change the combinations in the configuration file).
 
+Optional [right-stick gyro control](Docs/MotionStick.md) uses a separate held button for analog motion while preserving Back touchpad/rotation/shake combinations.
+
 
 By default, the `RB` and `DPAD ←↑↓→` buttons also work in the game, if they interfere with movement activation, you can try disabling them using the `DisableButtonOnMotion` parameter.
 
