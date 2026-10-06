@@ -41,6 +41,30 @@ All four numeric/curve controls are ignored by legacy mode. Existing
 `DeadZoneRightStickX/Y` filtering runs first; the benchmark leaves those at zero.
 `InvertX/Y` continues to affect the right stick in both new modes.
 
+## Swipe troubleshooting: unintended second finger
+
+Back + right stick moves the first touch; Back + left stick controls the second.
+With `DeadZoneLeftStickX/Y=0`, a slightly drifting left stick can therefore keep
+two touches down even when only the right stick is being used. A live diagnostic
+captured changing first-touch coordinates alongside a persistent second touch
+from approximately 6% left-stick drift. Replaying 897 recorded Back samples
+through the actual report mapping with 8% left-axis deadzones removed the second
+finger while retaining the first touch's coordinates/tracking and gyro values.
+
+For a similar controller, merge these existing settings into `[Xbox]` and restart:
+
+```ini
+DeadZoneLeftStickX=8
+DeadZoneLeftStickY=8
+```
+
+These values are percentages (8 means 8%), unlike normalized `MotionStickDeadzone`
+and `TouchpadStickDeadzone`. Choose values appropriate to the controller's measured
+drift; they also filter normal left-stick controls. The right stick's touchpad and
+gyro settings can remain unchanged. This is a configuration adjustment, not a new
+touchpad mapping or an in-game validation. If swipes still fail with a single
+moving touch, check the receiving emulator/game's touch input separately.
+
 ## Behavior and mathematics
 
 Legacy converts the stick to 8-bit report axes first, computes their shared radial
