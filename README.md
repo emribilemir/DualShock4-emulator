@@ -52,7 +52,9 @@ Release x64 builds and synthetic report/regression tests passed. The gyro calibr
 ## Download
 >Version for Windows 10, 11.
 
-**[Download](https://github.com/r57zone/DualShock4-emulator/releases)**
+**[Download original upstream releases](https://github.com/r57zone/DualShock4-emulator/releases)**
+
+These upstream binaries do not include the Xbox input improvements described above. No binary release has been published for this fork yet; the updated source is on this branch. The changes and validation are tracked in [PR #107](https://github.com/r57zone/DualShock4-emulator/pull/107).
 
 ## FAQ
 **• The program crashes after launch**<br>
