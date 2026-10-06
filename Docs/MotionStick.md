@@ -22,6 +22,10 @@ Start press without analog movement sends a 50 ms Options pulse on release, rath
 than opening the menu on press. Back + Start still sends Share and cancels the
 pending menu action. RB remains normal R1, and RT/LT stay available. Moving the
 stick beyond the deadzone during a plain Start press counts as a motion gesture.
+After Back + Start, the entire held Start press remains consumed, even if Back
+is released first. The same rule applies when a Back chord interrupts analog
+motion. Neither centering the stick nor releasing the remaining key can create
+a new menu tap; a fresh plain Start press is required after release.
 
 The older RB modifier is still selectable with `MotionStickKey=RIGHT-SHOULDER`:
 RB alone retains normal R1 output. RB + right-stick movement beyond the configured

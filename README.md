@@ -45,7 +45,7 @@ MotionStickInvertHorizontal=1
 MotionStickInvertVertical=0
 ```
 
-With this preset, Start/Menu alone opens the game menu on release. Start + right-stick movement starts gyro and never sends Options, including when the stick centers or Start is released. RB remains normal R1. Back + Start still sends Share. The original RB modifier remains selectable; its plain press is forwarded immediately before analog movement.
+With this preset, Start/Menu alone opens the game menu on release. Start + right-stick movement starts gyro and never sends Options, including when the stick centers or Start is released. RB remains normal R1. Back + Start still sends Share (or touchpad click with the existing swap setting). A chord consumes the entire held Start press: releasing Back first, centering the stick or returning from a chord to analog control does not rearm a menu tap. The original RB modifier remains selectable; its plain press is forwarded immediately before analog movement.
 
 This motion input is intended for tasks such as inFAMOUS Second Son graffiti aiming; slowing touchpad input alone does not address that motion control. Use the existing Back + D-pad rotation for the initial controller rotation, then Start + right stick for analog motion, with RT available for spraying. In shadPS4, select the virtual DS4, enable motion input and turn off F6 mouse gyro while testing. Directions may need adjustment for the game's current orientation or emulator build. Start also works with `SwapTriggersShoulders=1`; a shoulder modifier is suspended in that configuration.
 
@@ -66,7 +66,7 @@ Release x64 builds and synthetic report/regression tests passed. The gyro calibr
 ## Download
 >Version for Windows 10, 11.
 
-**[Download this fork: Xbox motion preview 1 (Windows x64)](https://github.com/emribilemir/DualShock4-emulator/releases/tag/v2.2-xbox-motion-preview.1)**
+**[Download this fork: Xbox motion preview 2 (Windows x64)](https://github.com/emribilemir/DualShock4-emulator/releases/tag/v2.2-xbox-motion-preview.2)**
 
 Use the portable ZIP for the EXE, Start motion preset (30 deg/s), controller profiles, cursor, instructions and licenses. The release also provides the standalone EXE, SHA-256 checksums and build information. Install ViGEmBus separately. This is a prerelease: Release x64 builds and automated tests passed; the latest Start routing and drift correction still need in-game confirmation. It is a fork build, not an official upstream release. Code and discussion are tracked in [PR #107](https://github.com/r57zone/DualShock4-emulator/pull/107).
 
