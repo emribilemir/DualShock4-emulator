@@ -40,6 +40,18 @@ inline double Normalize(short value) {
     return value < 0 ? value / 32768.0 : value / 32767.0;
 }
 
+// Click suppression has its own threshold; touch coordinates remain unchanged.
+inline double ValidateClickDeadzone(double value) {
+    return Limit(std::isfinite(value) ? value : 0.12, 0.0, 0.95);
+}
+
+inline bool SuppressClick(short stickX, short stickY, unsigned char mappedX, unsigned char mappedY, double deadzone) {
+    // Zero explicitly restores the original exact-byte center check.
+    if (deadzone <= 0.0) return mappedX != 127 || mappedY != 129;
+    const double x = Normalize(stickX), y = Normalize(stickY);
+    return x * x + y * y > deadzone * deadzone;
+}
+
 struct State {
     bool active = false;
     double x = 959.5, y = 470.5;

@@ -454,6 +454,7 @@ int main(int argc, char **argv)
 	if (XboxTouchpad::Lower(IniFile.ReadString("Xbox", "TouchpadStickCurve", "linear")) == "quadratic")
 		TouchpadStickSettings.curve = XboxTouchpad::Curve::Quadratic;
 	TouchpadStickSettings.Validate();
+	const double TouchpadClickDeadzone = XboxTouchpad::ValidateClickDeadzone(IniFile.ReadFloat("Xbox", "TouchpadClickDeadzone", 0.12f));
 
 	const bool MotionStickEnabled = IniFile.ReadBoolean("Xbox", "MotionStickEnabled", false);
 	const std::string MotionStickKeyName = IniFile.ReadString("Xbox", "MotionStickKey", "RIGHT-SHOULDER");
@@ -918,7 +919,7 @@ int main(int argc, char **argv)
 
 				// Touchpad swipes
 				if (report.bSpecial & DS4_SPECIAL_BUTTON_TOUCHPAD) {
-						if (!TouchPadPressedWhenSwiping && (report.bThumbRX != 127 || report.bThumbRY != 129)) {
+						if (!TouchPadPressedWhenSwiping && XboxTouchpad::SuppressClick(myPState.Gamepad.sThumbRX, myPState.Gamepad.sThumbRY, report.bThumbRX, report.bThumbRY, TouchpadClickDeadzone)) {
 							report.bSpecial &= ~DS4_SPECIAL_BUTTON_TOUCHPAD;
 							if (myPState.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB) { report.wButtons &= ~DS4_BUTTON_THUMB_RIGHT; report.bSpecial |= DS4_SPECIAL_BUTTON_TOUCHPAD; }
 						}

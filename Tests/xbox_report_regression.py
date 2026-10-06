@@ -43,6 +43,7 @@ Result NAME(XINPUT_STATE myPState, const Config& c, State& state) {
     bool MotionYSub = false, MotionZAdd = false, MotionZSub = false, MotionShakingSwap = false;
     auto& TouchpadStickState = state.stick;
     const auto& TouchpadStickSettings = c.touch;
+    const double TouchpadClickDeadzone = c.clickDeadzone;
     const double TouchpadStickDelta = 0.01;
     bool XboxStickTouchActive = false;
     bool XboxStickMotionActive = false;
@@ -93,7 +94,7 @@ const int KEY_ID_SHARE = 0;
     preamble += header[header.index("double StickDeviationPercent"):]
     preamble += """
 struct State { _TouchData t1{}, t2{}; DS4_TOUCH last{}; bool valid = false; uint8_t packet = 0; XboxTouchpad::State stick; XboxMotion::Gesture motionGesture; XboxMotion::MenuButton menuButton; };
-struct Config { bool swap = false, disable = false, share = false, click = false, ix = false, iy = false; XboxTouchpad::Settings touch; bool motionEnabled = false, externalMotion = false; int motionKey = XINPUT_GAMEPAD_RIGHT_SHOULDER; XboxMotion::Settings motion; };
+struct Config { bool swap = false, disable = false, share = false, click = false, ix = false, iy = false; XboxTouchpad::Settings touch; double clickDeadzone = 0.12; bool motionEnabled = false, externalMotion = false; int motionKey = XINPUT_GAMEPAD_RIGHT_SHOULDER; XboxMotion::Settings motion; };
 struct Result { DS4_REPORT_EX report; unsigned motions; bool modifier; };
 void check(bool ok, const char* message) { if (!ok) { std::fprintf(stderr, "FAIL: %s\\n", message); std::exit(1); } }
 """
@@ -157,6 +158,53 @@ int main() {
     check(direction.t1.X > 960 && direction.t1.Y < 471, "normal absolute X/Y direction");
     c.ix = c.iy = true; direction = {}; auto inverted = updated(x,c,direction);
     check(direction.t1.X < 960 && direction.t1.Y > 471, "existing InvertX/Y settings honored");
+
+    // Raw drift measured on the physical Xbox must not swallow a plain Back press.
+    for (auto mode : {XboxTouchpad::Mode::Legacy, XboxTouchpad::Mode::Absolute, XboxTouchpad::Mode::Relative})
+    for (bool invert : {false,true}) for (bool swap : {false,true}) {
+        Config plainBack; plainBack.touch.mode = mode; plainBack.ix=plainBack.iy=invert;
+        plainBack.swap=swap; plainBack.motionEnabled=true; plainBack.motionKey=XINPUT_GAMEPAD_START;
+        XINPUT_STATE drift{}; drift.Gamepad.wButtons=XINPUT_GAMEPAD_BACK;
+        drift.Gamepad.sThumbRX=-73; drift.Gamepad.sThumbRY=-1238;
+        drift.Gamepad.bLeftTrigger=77; drift.Gamepad.bRightTrigger=215;
+        State safeState, originalState; Config exact=plainBack; exact.clickDeadzone=0;
+        for (int i=0; i<20; ++i) {
+            auto safe=updated(drift,plainBack,safeState), oldClick=updated(drift,exact,originalState);
+            check(safe.report.bSpecial & DS4_SPECIAL_BUTTON_TOUCHPAD,"plain Back remains a touchpad click under measured stick drift");
+            check(!(oldClick.report.bSpecial & DS4_SPECIAL_BUTTON_TOUCHPAD),"zero click deadzone reproduces swallowed Back click");
+            check(!std::memcmp(&safe.report.sCurrentTouch,&oldClick.report.sCurrentTouch,sizeof(DS4_TOUCH))
+                && !std::memcmp(safe.report.sPreviousTouch,oldClick.report.sPreviousTouch,sizeof(safe.report.sPreviousTouch)),
+                "click deadzone does not change touch coordinates, tracking or history in any mode");
+            check(safe.report.bTriggerL==(swap?0:77) && safe.report.bTriggerR==(swap?0:215),"plain Back keeps existing trigger and swap mapping");
+        }
+        drift.Gamepad.sThumbRY=32767;
+        auto swipe=updated(drift,plainBack,safeState);
+        check(!(swipe.report.bSpecial & DS4_SPECIAL_BUTTON_TOUCHPAD)
+            && !(swipe.report.sCurrentTouch.bIsUpTrackingNum1 & 128),"meaningful swipe sends touch without click");
+        check(swipe.report.bThumbRX==128 && swipe.report.bThumbRY==128,"Back swipe keeps normal sticks suppressed");
+        drift.Gamepad.wButtons|=XINPUT_GAMEPAD_RIGHT_THUMB;
+        check(updated(drift,plainBack,safeState).report.bSpecial & DS4_SPECIAL_BUTTON_TOUCHPAD,"right-stick click during swipe is preserved");
+        drift.Gamepad.wButtons=XINPUT_GAMEPAD_BACK; plainBack.click=true;
+        check(updated(drift,plainBack,safeState).report.bSpecial & DS4_SPECIAL_BUTTON_TOUCHPAD,"click-while-swiping option is preserved");
+        drift.Gamepad.wButtons=0;
+        auto up=updated(drift,plainBack,safeState);
+        check(!(up.report.bSpecial & DS4_SPECIAL_BUTTON_TOUCHPAD)
+            && (up.report.sCurrentTouch.bIsUpTrackingNum1 & 128)
+            && (up.report.sCurrentTouch.bIsUpTrackingNum2 & 128),"Back release lifts both fingers and releases click");
+    }
+    check(XboxTouchpad::ValidateClickDeadzone(NAN)==0.12 && XboxTouchpad::ValidateClickDeadzone(2)==0.95
+        && XboxTouchpad::ValidateClickDeadzone(-1)==0,"click deadzone config is validated");
+    check(!XboxTouchpad::SuppressClick(3932,0,142,129,0.12)
+        && XboxTouchpad::SuppressClick(3933,0,142,129,0.12),"radial click threshold boundary");
+    Config compatibility; compatibility.clickDeadzone=0;
+    for (SHORT rx : {SHORT(-32768),SHORT(-1238),SHORT(0),SHORT(1000),SHORT(32767)})
+    for (SHORT ry : {SHORT(-32768),SHORT(-1238),SHORT(0),SHORT(1000),SHORT(32767)}) {
+        State originalState, newState; XINPUT_STATE heldBack{};
+        heldBack.Gamepad.wButtons=XINPUT_GAMEPAD_BACK; heldBack.Gamepad.sThumbRX=rx; heldBack.Gamepad.sThumbRY=ry;
+        auto previous=original(heldBack,compatibility,originalState), current=updated(heldBack,compatibility,newState);
+        check(!std::memcmp(&previous.report,&current.report,sizeof(DS4_REPORT_EX)),"zero click deadzone retains exact original full report");
+    }
+    std::puts("PASS: Back click under measured drift, unchanged swipe packets, thresholds, legacy compatibility and Back release.");
 
     unsigned long long analog = 0;
     for (int key : {XINPUT_GAMEPAD_RIGHT_SHOULDER, XINPUT_GAMEPAD_RIGHT_THUMB, XINPUT_GAMEPAD_START, 0, XINPUT_GAMEPAD_BACK})
