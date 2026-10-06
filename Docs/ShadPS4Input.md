@@ -48,12 +48,19 @@ native DS4 **touchpad click**; Back + Start becomes **Share**. The virtual devic
 therefore does not emit an ordinary Xbox Back button for that press. See the
 [DS4 report mapping](../Source/DS4Emulator.cpp).
 
-At rest, that code also creates a center touch at `(960,471)` and marks the finger
-down. A deliberate swipe can suppress the click while continuing to send touch
-coordinates. These are report-generation facts, not confirmation that shadPS4
-or the game receives and uses the plain Back click correctly. Swipe success
-therefore does not establish click success, and the workaround cannot be explained
-simply as adding a center coordinate missing from DS4Emulator.
+The code initializes touch to `(960,471)`, then applies the stick mapping and marks
+the finger down. Exact neutral retains the center, but legacy mapping can move
+the contact far from center even under small drift. With the previously measured
+right stick `(-73,-1238)` and the current non-inverted, zero right-stick-deadzone
+settings, the formula produces `(960,135)`. The 12% **click** deadzone preserves
+the click but intentionally does not center the **touch coordinate**. These values
+come from evaluating the source formula, not a capture of the failing game frame.
+
+The mapper's fixed center coordinate could therefore matter if the interaction
+depends on contact location. This is a concrete hypothesis, not a verified game
+requirement or explanation of how the second controller contributes. A deliberate
+swipe can also suppress click while continuing to send touch coordinates. Report
+generation does not confirm that shadPS4 or the game uses the plain Back click.
 
 In the inspected custom shadPS4 build, the native DS4 touchpad button is handled
 directly and returns before normal rebinding. Native touch coordinates have a
