@@ -54,7 +54,7 @@ This motion input is intended for tasks such as inFAMOUS Second Son graffiti aim
 
 See [motion controls and console tuning](Docs/MotionStick.md) and [touchpad settings and comparisons](Docs/TouchpadStick.md). Set `MotionStickEnabled=0` and `TouchpadStickMode=legacy` to use the original control scheme while retaining the trigger fix.
 
-**shadPS4 Back/touchpad workaround:** one user reports that keeping the physical Xbox visible as a second controller and mapping its Back/View to **Touchpad Center** resolves the inFAMOUS touchpad interaction, with HidHide off. The exact two-controller interaction remains unconfirmed. See [the observed configuration and why virtual DS4 Back cannot be captured as Xbox Back](Docs/ShadPS4Input.md).
+**shadPS4 Back/touchpad workaround:** one user reports that swipes work, but the interaction requiring Back alone works only after keeping the physical Xbox visible as a second controller and mapping its Back/View to **Touchpad Center**, with HidHide off. DS4Emulator generates native click and center-touch data for plain Back; why the game needs the additional Xbox binding remains unconfirmed. See [the observed configuration and why virtual DS4 Back cannot be captured as Xbox Back](Docs/ShadPS4Input.md).
 
 Release x64 builds and synthetic report/regression tests passed. The gyro calibration offset was also measured from a live virtual DS4. These checks do not establish gameplay results; the latest drift correction still needs in-game confirmation. Reproduce tests with `Tests/run_touchpad_tests.ps1 -Python python`; add `-Render` to generate the touchpad comparison GIFs.
 

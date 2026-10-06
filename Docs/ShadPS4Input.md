@@ -5,7 +5,10 @@
 On 2026-10-06, the user reported that the inFAMOUS Second Son touchpad interaction
 worked after keeping the physical Xbox controller visible as a second controller
 and assigning **Touchpad Center** to its **Back/View** button in shadPS4.
-HidHide was disabled. This is a working configuration reported for that setup,
+The user clarified that **swipes already reach the game without that binding**;
+the interaction requiring **Back alone** does not work until the physical Xbox
+Back/View is assigned to Touchpad Center. HidHide was disabled.
+This is a working configuration reported for that setup,
 not a confirmed fix for all shadPS4 versions or a requirement to enable two players.
 
 The observed arrangement was:
@@ -45,16 +48,24 @@ native DS4 **touchpad click**; Back + Start becomes **Share**. The virtual devic
 therefore does not emit an ordinary Xbox Back button for that press. See the
 [DS4 report mapping](../Source/DS4Emulator.cpp).
 
+At rest, that code also creates a center touch at `(960,471)` and marks the finger
+down. A deliberate swipe can suppress the click while continuing to send touch
+coordinates. These are report-generation facts, not confirmation that shadPS4
+or the game receives and uses the plain Back click correctly. Swipe success
+therefore does not establish click success, and the workaround cannot be explained
+simply as adding a center coordinate missing from DS4Emulator.
+
 In the inspected custom shadPS4 build, the native DS4 touchpad button is handled
 directly and returns before normal rebinding. Native touch coordinates have a
 separate event path. This explains why pressing physical Back while selecting
 the virtual DS4 does not supply a normal Back binding in that mapper.
 [Source: native event handling](https://github.com/rayhlancaner-png/shadPS4-Infamous-FixBuild/blob/0555e9806ee7f1a6e09846108ede510d34cbb05d/src/sdl_window.cpp#L389-L429).
 
-The mapper's **Touchpad Center** output additionally generates a touch at the
-center and a touchpad button state. A native touchpad click and this synthesized
-center touch are distinct paths; their difference is relevant evidence, not a
-confirmed explanation of the two-controller result.
+The mapper's **Touchpad Center** output generates a center touch and a touchpad
+button state through its binding-output path. This differs from the virtual DS4's
+native touch/button event paths. Different routing, timing or interaction between
+controllers are possible explanations, but none has been isolated. In particular,
+the mapping code alone does not prove that the DS4 click is delivered to the game.
 [Source: center output](https://github.com/rayhlancaner-png/shadPS4-Infamous-FixBuild/blob/0555e9806ee7f1a6e09846108ede510d34cbb05d/src/input/input_handler.cpp#L699-L711).
 
 Swapping Share and touchpad changes the existing Back/Back + Start scheme; it is
