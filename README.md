@@ -54,6 +54,8 @@ This motion input is intended for tasks such as inFAMOUS Second Son graffiti aim
 
 See [motion controls and console tuning](Docs/MotionStick.md) and [touchpad settings and comparisons](Docs/TouchpadStick.md). Set `MotionStickEnabled=0` and `TouchpadStickMode=legacy` to use the original control scheme while retaining the trigger fix.
 
+**shadPS4 Back/touchpad workaround:** one user reports that keeping the physical Xbox visible as a second controller and mapping its Back/View to **Touchpad Center** resolves the inFAMOUS touchpad interaction, with HidHide off. The exact two-controller interaction remains unconfirmed. See [the observed configuration and why virtual DS4 Back cannot be captured as Xbox Back](Docs/ShadPS4Input.md).
+
 Release x64 builds and synthetic report/regression tests passed. The gyro calibration offset was also measured from a live virtual DS4. These checks do not establish gameplay results; the latest drift correction still needs in-game confirmation. Reproduce tests with `Tests/run_touchpad_tests.ps1 -Python python`; add `-Render` to generate the touchpad comparison GIFs.
 
 ## Setup
@@ -92,7 +94,7 @@ First change the name of the window in the configuration file or change the `Act
 
 
 • **The game sees 2 controllers at the same time (DualSense / DualShock 4 / Nintendo Pro controller or JoyCons and Xbox)**<br>
-See the [HidHide setup and normal-Xbox mode guide](Docs/HidHide.md) to hide the physical controller while allowing DS4Emulator to read it. This avoids a game-specific launcher when hiding is confirmed to work. The guide includes DS4/Xbox mode switches and the documented Xbox/XInput limitations.
+For shadPS4, first see the [reported two-controller Back/touchpad workaround](Docs/ShadPS4Input.md). For optional device isolation, see the [HidHide setup and normal-Xbox mode guide](Docs/HidHide.md) to hide the physical controller while allowing DS4Emulator to read it. Hiding removes the physical input used by that workaround. The guide includes DS4/Xbox mode switches and the documented Xbox/XInput limitations.
 
 ## Xbox controller
 The "Back/View/Select" button (the first button to the right of the left stick) on the Xbox controller emulating pressing the touchpad on a Sony DualShock 4.

@@ -1,5 +1,10 @@
 # Using one virtual DS4 without an emulator launcher
 
+HidHide is optional. The latest [user-reported shadPS4 Back/touchpad workaround](ShadPS4Input.md)
+keeps the physical Xbox visible as a second controller and maps its Back/View to
+Touchpad Center. Hiding was disabled in that arrangement. The earlier single-DS4
+test below records a different configuration, not proof that hiding is required.
+
 The physical Xbox controller and the virtual DS4 are separate devices. A game can
 read ordinary buttons from one while touch and motion arrive on another player
 slot. Selecting PS4 in a bindings screen does not by itself verify that native
@@ -12,6 +17,15 @@ DS4Emulator to read it. It operates at the Windows device level, so no game path
 or shadPS4 executable path is needed. Use the [official installer](https://github.com/nefarius/HidHide/releases)
 and [setup guide](https://docs.nefarius.at/projects/HidHide/Simple-Setup-Guide/).
 Finish any requested Windows restart before testing.
+
+Before enabling hiding, verify that the allowlisted DS4Emulator starts in **Xbox**
+mode. If it cannot read an Xbox controller at startup, it can fall back to keyboard
+and mouse mode. With `EnableCentering=1` and `ActivateInAnyWindow=1` in
+`[KeyboardMouse]`, that mode repeatedly centers the desktop cursor. A local
+mouse-lock incident occurred during hiding setup; this fallback is a plausible
+cause, but the exact triggering state was not captured. Disable hiding and close
+DS4Emulator to recover. For a controller-only setup, setting both options to `0`
+prevents this cursor-centering behavior if startup falls back to keyboard mode.
 
 ## One-time configuration
 
