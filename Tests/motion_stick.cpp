@@ -33,6 +33,12 @@ int main() {
         menu.Update(true,true,false,1.0/hz);
         check(!menu.Update(false,true,false,1.0/hz) && !menu.Update(true,false,false,1.0/hz),
             "Back priority cancels pending tap without later menu pulse");
+        menu.Update(false,true,false,1.0/hz);
+        for (int i=0; i<hz; ++i)
+            check(!menu.Update(true,true,false,1.0/hz), "Back-first release keeps Start chord consumed while held");
+        check(!menu.Update(true,false,false,1.0/hz), "consumed chord release never opens Options");
+        menu.Update(true,true,false,1.0/hz);
+        check(menu.Update(true,false,false,1.0/hz), "new plain Start press works after consumed chord release");
     }
     auto full = XboxMotion::Calculate(32767,0,s);
     check(full.gyro[0] == 0 && full.gyro[1] == -960 && full.gyro[2] == 0,"horizontal mouse-equivalent axis and speed");

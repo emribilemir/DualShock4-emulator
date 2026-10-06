@@ -45,20 +45,25 @@ struct Gesture {
     }
 };
 struct MenuButton {
-    bool held = false, usedForMotion = false;
+    bool held = false, consumed = false;
     double pulse = 0.0;
     bool Update(bool allowed, bool pressed, bool motionActive, double seconds) {
-        if (!allowed) { *this = {}; return false; }
+        if (!allowed) {
+            // A chord owns the whole physical press. Releasing Back first must
+            // not turn the still-held Start into a new pending menu tap.
+            held = pressed; consumed = pressed; pulse = 0.0;
+            return false;
+        }
         pulse = std::fmax(0.0, pulse - XboxTouchpad::Limit(seconds, 0.0, 0.05));
         if (pressed) {
-            if (!held) { usedForMotion = false; pulse = 0.0; }
+            if (!held) { consumed = false; pulse = 0.0; }
             held = true;
-            usedForMotion = usedForMotion || motionActive;
+            consumed = consumed || motionActive;
             return false;
         }
         if (held) {
-            if (!usedForMotion) pulse = 0.05; // Remain visible across host polling intervals.
-            held = usedForMotion = false;
+            if (!consumed) pulse = 0.05; // Remain visible across host polling intervals.
+            held = consumed = false;
         }
         return pulse > 0.0;
     }

@@ -285,6 +285,61 @@ int main() {
     check(updated(menuInput,menu,menuState).motions & 1, "Back plus RB shake unchanged with Start motion key");
     menu.motionEnabled = false; menuInput.Gamepad.wButtons = XINPUT_GAMEPAD_START;
     check(updated(menuInput,menu,menuState).report.wButtons & DS4_BUTTON_OPTIONS, "disabled motion keeps immediate held Options");
+    for (bool swapped : {false,true}) for (bool startFirst : {false,true}) for (bool backReleasedFirst : {false,true}) {
+        Config chord; chord.motionEnabled = true; chord.motionKey = XINPUT_GAMEPAD_START; chord.share = swapped;
+        State chordState; XINPUT_STATE chordInput{};
+        chordInput.Gamepad.wButtons = startFirst ? XINPUT_GAMEPAD_START : XINPUT_GAMEPAD_BACK;
+        updated(chordInput,chord,chordState);
+        chordInput.Gamepad.wButtons = XINPUT_GAMEPAD_BACK | XINPUT_GAMEPAD_START;
+        auto combined = updated(chordInput,chord,chordState);
+        check(!(combined.report.wButtons & DS4_BUTTON_OPTIONS), "Back/Start chord does not send Options");
+        check(swapped ? (combined.report.bSpecial & DS4_SPECIAL_BUTTON_TOUCHPAD) != 0
+            : (combined.report.wButtons & DS4_BUTTON_SHARE) != 0, "Back/Start Share or swapped touchpad click retained");
+        chordInput.Gamepad.wButtons = backReleasedFirst ? XINPUT_GAMEPAD_START : XINPUT_GAMEPAD_BACK;
+        for (int i=0; i<20; ++i)
+            check(!(updated(chordInput,chord,chordState).report.wButtons & DS4_BUTTON_OPTIONS),
+                "partial chord release must not rearm a plain Start tap");
+        chordInput.Gamepad.wButtons = 0;
+        for (int i=0; i<20; ++i)
+            check(!(updated(chordInput,chord,chordState).report.wButtons & DS4_BUTTON_OPTIONS),
+                "either Back/Start release order must not open menu");
+        chordInput.Gamepad.wButtons = XINPUT_GAMEPAD_START;
+        updated(chordInput,chord,chordState);
+        chordInput.Gamepad.wButtons = 0;
+        check(updated(chordInput,chord,chordState).report.wButtons & DS4_BUTTON_OPTIONS,
+            "a fresh plain Start tap works after the entire chord is released");
+    }
+    for (bool backDuringMotion : {false,true}) for (bool centerFirst : {false,true}) {
+        Config gyro; gyro.motionEnabled = true; gyro.motionKey = XINPUT_GAMEPAD_START;
+        State gyroState; XINPUT_STATE gyroInput{};
+        gyroInput.Gamepad.bLeftTrigger = 77; gyroInput.Gamepad.bRightTrigger = 215;
+        gyroInput.Gamepad.wButtons = XINPUT_GAMEPAD_START;
+        updated(gyroInput,gyro,gyroState);
+        gyroInput.Gamepad.sThumbRX = 6553;
+        for (int i=0; i<10; ++i) {
+            auto drawing = updated(gyroInput,gyro,gyroState);
+            check(!(drawing.report.wButtons & DS4_BUTTON_OPTIONS) && drawing.report.bTriggerL == 77
+                && drawing.report.bTriggerR == 215, "gyro gesture never sends Options while preserving both triggers");
+        }
+        if (backDuringMotion) {
+            gyroInput.Gamepad.wButtons |= XINPUT_GAMEPAD_BACK;
+            updated(gyroInput,gyro,gyroState);
+            gyroInput.Gamepad.sThumbRX = 0;
+            gyroInput.Gamepad.wButtons = XINPUT_GAMEPAD_START;
+            for (int i=0; i<10; ++i)
+                check(!(updated(gyroInput,gyro,gyroState).report.wButtons & DS4_BUTTON_OPTIONS),
+                    "Back chord during gyro does not rearm centered Start");
+        }
+        if (centerFirst) {
+            gyroInput.Gamepad.sThumbRX = 0;
+            updated(gyroInput,gyro,gyroState);
+        }
+        gyroInput.Gamepad.wButtons = 0;
+        for (int i=0; i<20; ++i)
+            check(!(updated(gyroInput,gyro,gyroState).report.wButtons & DS4_BUTTON_OPTIONS),
+                "gyro release with centered or deflected stick never opens menu, including Back interruption");
+    }
+    std::puts("PASS: Back/Start chord press/release orders, Share/touchpad swap, gyro/chord interruptions and fresh menu taps.");
     std::puts("PASS: Start tap/menu pulse, analog motion without Options, normal RB/RT, Back touch/rotation/shake and Share.");
     std::printf("PASS: %llu enabled analog full-report comparisons, plain RB, gesture latch, RT, Back, touch-up, neutral and release.\n", analog);
     std::printf("PASS: %llu legacy full reports, %llu modern button/stick/motion comparisons; corner, release, tracking, LT/RT.\n", cases,modern);
