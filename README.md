@@ -13,8 +13,22 @@ This development branch extends the original project by [r57zone](https://github
 - **Simultaneous triggers:** LT/L2 and RT/R2 remain available while Back/View activates touchpad or motion emulation. Shoulder/trigger swapping is preserved.
 - **Optional analog motion:** hold a configurable button and move the right stick beyond its motion deadzone to start DS4 gyro control. The preset below uses Start/Menu: a plain press opens the menu on release, while a motion gesture never sends Options. RB remains normal R1. Speed, deadzone, response curve, axes and inversion are configurable. Releasing the modifier restores normal right-stick control; existing Back + D-pad rotation and Back + RB shake retain priority.
 - **Console sensitivity editor:** focus the emulator console and press M. Arrows adjust speed, Shift + arrows make finer adjustments, Enter saves, and Esc/M cancels. The editor adds no global shortcut and releases virtual game inputs while editing.
-- **Gyro neutral correction:** opt-in analog motion accounts for ViGEm's pitch calibration offset, including after releasing RB, to avoid a small calibrated rotation at rest.
+- **Gyro neutral correction:** opt-in analog motion accounts for ViGEm's pitch calibration offset, including after releasing the modifier, to avoid a small calibrated rotation at rest.
 - **Optional touchpad modes:** legacy, improved absolute and relative/velocity mapping. Existing configs retain legacy touchpad controls and have analog motion disabled.
+
+### Original behavior and our changes
+
+| Original 2.2 behavior or limitation | Change in this fork |
+| --- | --- |
+| LT/RT mapping was inside the block skipped while the Xbox motion/touchpad modifier was held. This prevented simultaneous touchpad input and R2/L2. | Trigger values and DS4 trigger flags are mapped independently of that block; shoulder/trigger swapping and Back stick suppression are retained. |
+| Controller motion used digital rotation/shake combinations, with no proportional right-stick gyro control. | Optional analog angular velocity with radial deadzone, linear/quadratic curve, configurable speed and axes. The release preset uses Start + right stick and keeps RB as R1. |
+| Legacy touchpad mapping converts to 8-bit axes and uses shared stick magnitude; small commands can jump away from center. | Optional 16-bit absolute mapping with smoothing, or elapsed-time relative movement that holds position at stick center. Legacy remains selectable; the release preset keeps it. |
+| There was no dedicated console editor for analog motion speed. | Console-only M editor, coarse/fine speed steps and save/cancel; no new global shortcut to conflict with the game/emulator. |
+| Raw zero gyro differs from calibrated zero with the measured ViGEm pitch bias (+1), producing a small nonzero calibrated rate. | Enabled analog motion sends the calibrated neutral value, including after modifier release. Digital motion and external IMU output retain their behavior. |
+
+Two refinements address conflicts introduced during this fork's development: the first RB modifier reserved R1 even for a plain press, so plain RB output was restored; the recommended Start modifier now defers Options until release and cancels it after an analog gesture, avoiding an initial menu press. These are fork refinements, not additional defects attributed to the original project.
+
+Back touchpad/rotation/shake combinations and existing touchpad-click suppression rules remain as in the original. Touchpad and gyro are different input paths: native inFAMOUS graffiti aiming motivated the analog motion feature; the touchpad experiments alone do not solve it. Reproducible touchpad comparisons are documented in [TouchpadStick.md](Docs/TouchpadStick.md).
 
 For a slower starting point, merge these keys into the existing `[Xbox]` section of `Config.ini` and restart:
 
@@ -52,9 +66,11 @@ Release x64 builds and synthetic report/regression tests passed. The gyro calibr
 ## Download
 >Version for Windows 10, 11.
 
-**[Download original upstream releases](https://github.com/r57zone/DualShock4-emulator/releases)**
+**[Download this fork: Xbox motion preview 1 (Windows x64)](https://github.com/emribilemir/DualShock4-emulator/releases/tag/v2.2-xbox-motion-preview.1)**
 
-These upstream binaries do not include the Xbox input improvements described above. No binary release has been published for this fork yet; the updated source is on this branch. The changes and validation are tracked in [PR #107](https://github.com/r57zone/DualShock4-emulator/pull/107).
+Use the portable ZIP for the EXE, Start motion preset (30 deg/s), controller profiles, cursor, instructions and licenses. The release also provides the standalone EXE, SHA-256 checksums and build information. Install ViGEmBus separately. This is a prerelease: Release x64 builds and automated tests passed; the latest Start routing and drift correction still need in-game confirmation. It is a fork build, not an official upstream release. Code and discussion are tracked in [PR #107](https://github.com/r57zone/DualShock4-emulator/pull/107).
+
+[Original upstream releases](https://github.com/r57zone/DualShock4-emulator/releases) remain available; those binaries do not include this fork's changes. The project's [Unlicense](LICENSE) permits source and compiled binary distribution; the package also includes the ViGEmClient MIT license and attribution.
 
 ## FAQ
 **• The program crashes after launch**<br>
