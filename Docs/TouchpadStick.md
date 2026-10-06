@@ -2,8 +2,9 @@
 
 Back/View and the right stick control the first DS4 touch. The new settings are opt-in:
 without `TouchpadStickMode`, the original mapping remains selected. The left stick's
-second touch, existing touchpad-click rules, Share swap, PS/motion chords, normal
-buttons, stick suppression and the earlier LT/RT fix are retained.
+second touch, Share swap, PS/motion chords, normal buttons, stick suppression and
+the earlier LT/RT fix are retained. Plain Back click now has a separate drift
+threshold; deliberate swipe click suppression and its existing overrides remain.
 
 Merge these keys into the existing `[Xbox]` section of `Config.ini`, then restart.
 They are not keyboard/mouse profile settings.
@@ -30,6 +31,7 @@ mapping needs separate testing. Select the virtual DS4 in the game/emulator.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
+| TouchpadClickDeadzone | 0.12 | Separate radial threshold for suppressing touchpad click; 0..0.95; zero restores original exact-center check; applies to all modes |
 | TouchpadStickMode | legacy | `legacy`, `absolute`, `relative`; unknown values use legacy |
 | TouchpadStickSensitivity | 0.60 | Absolute span multiplier or relative speed multiplier; clamped to 0.05..3.0 |
 | TouchpadStickDeadzone | 0.12 | Radial normalized deadzone; clamped to 0..0.95 |
@@ -37,9 +39,25 @@ mapping needs separate testing. Select the virtual DS4 in the game/emulator.
 | TouchpadStickSmoothing | 0 | Absolute position filter time constant in seconds, 0..1; ignored by relative |
 
 Mode/curve names ignore ASCII case. Non-finite numeric values use defaults.
-All four numeric/curve controls are ignored by legacy mode. Existing
+Stick sensitivity/deadzone/curve/smoothing are ignored by legacy mode. The
+separate click deadzone applies to legacy too and does not filter coordinates. Existing
 `DeadZoneRightStickX/Y` filtering runs first; the benchmark leaves those at zero.
 `InvertX/Y` continues to affect the right stick in both new modes.
+
+## Back click troubleshooting: small right-stick drift
+
+The original condition cancelled touchpad click unless right-stick report bytes
+were exactly `127/129`. A measured Xbox sample `(-73,-1238)` is only about 3.8%
+radial deflection, yet cancels a plain Back press under that condition. This fork
+uses `TouchpadClickDeadzone=0.12` (12%) independently of position mapping. Above
+that threshold, swipe clicks are suppressed as before; the existing
+`TouchPadPressedWhenSwiping=1` and right-stick-click override remain available.
+Set the click deadzone to zero for the exact original check.
+
+Real-source tests cover all three modes, inversion, swapped shoulders, unchanged
+touch coordinates/tracking/history, triggers, deliberate swipes and Back release.
+The new binary still requires gameplay confirmation for an individual setup.
+For physical/virtual controller conflicts, use the [HidHide guide](HidHide.md).
 
 ## Swipe troubleshooting: unintended second finger
 
